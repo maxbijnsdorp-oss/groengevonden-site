@@ -272,6 +272,7 @@ input:focus,select:focus{border-color:var(--heide);outline:2px solid var(--heide
 .consent input{margin-top:.25em;width:18px;height:18px;accent-color:var(--heide);flex:none}
 .form-msg{font-size:var(--step--1);padding:14px;border-radius:4px;border:1px solid var(--mos);background:var(--mos-soft)}
 .form-msg.err{border-color:var(--heide);background:var(--heide-soft)}
+.turnstile:empty{display:none}
 @media (max-width:860px){.form-grid{grid-template-columns:1fr;gap:32px}}
 @media (max-width:520px){.row{grid-template-columns:1fr}form{padding:20px}}
 
@@ -589,7 +590,7 @@ footer .cols div{display:grid;gap:4px}
         </div>
       </div>
 
-      <form id="scan-form" action="/api/scan" method="post" data-endpoint="/api/scan" novalidate>
+      <form id="scan-form" action="/api/scan" method="post" data-endpoint="/api/scan">
         <div class="row">
           <div class="field"><label for="f-naam">Je naam</label><input id="f-naam" name="naam" type="text" autocomplete="name" maxlength="100" required></div>
           <div class="field"><label for="f-bedrijf">Naam van je bedrijf</label><input id="f-bedrijf" name="bedrijf" type="text" autocomplete="organization" maxlength="120" required></div>
@@ -619,6 +620,8 @@ footer .cols div{display:grid;gap:4px}
           <input id="f-vervolg" name="vervolg" type="checkbox">
           <span>Ja, je mag me daarna hooguit twee berichten sturen over wat je zou doen en wat het kost. Stoppen kan altijd met STOP. <span class="opt">(niet verplicht)</span></span>
         </label>
+        <div class="turnstile" id="f-turnstile" data-sitekey="{{turnstile_sitekey}}"></div>
+        <noscript><p class="fineprint">Dit formulier werkt alleen met JavaScript. Bel of app ons liever: {{telefoon}}.</p></noscript>
         <button class="btn btn-primary" type="submit" id="f-submit">Vraag mijn gratis scan aan</button>
         <div class="form-msg" id="form-msg" role="status" hidden></div>
       </form>

@@ -1,0 +1,9 @@
+{
+  "name": "groengevonden-site-tests",
+  "private": true,
+  "description": "Alleen voor lokaal testen met wrangler en Playwright. De site en de build hebben geen Node nodig. Staat in tests/ zodat Cloudflare Pages het niet bij elke build installeert.",
+  "devDependencies": {
+    "playwright": "1.63.0",
+    "wrangler": "4.158.0"
+  }
+}

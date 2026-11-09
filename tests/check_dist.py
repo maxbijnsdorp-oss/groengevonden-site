@@ -11,10 +11,16 @@ Controleert:
 - geen inline <script> (behalve JSON-LD), CSP zonder 'unsafe-inline' voor scripts
 - JSON-LD is geldige JSON met de gegevens uit config.json
 - de bedrijfsnaam en het domein staan nergens letterlijk in src/ of functions/ (alleen in config.json)
-- de toestemmingstekst in de functie is gelijk aan de tekst bij het vinkje
+- de teksten bij vinkje 1 en vinkje 2 zijn gelijk aan CONSENT_TEXT en VERVOLG_TEXT in de functie
 - de maxlength van de velden is gelijk aan de limieten in de functie
+- de gemeenten in de functie zijn gelijk aan de keuzelijst, de e-mailcontrole in main.js aan die in de functie
+- het formulier heeft het Turnstile-vak met de sitekey uit config.json, en geen novalidate
+- de privacyverklaring noemt beide vinkjes met de tekst van nu, en niet meer het oude vinkje
+- de privacyverklaring is gelijk aan ../website/privacy.html, op de correcties in tools/privacy-bron.json na
+  (alleen als dat bestand er is)
 - geen lange of halve kastlijnen (gedachtestreepjes) in de teksten
 """
+import difflib
 import json
 import re
 import sys
@@ -25,6 +31,9 @@ ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 SRC = ROOT / "src"
 FUNCTION = ROOT / "functions" / "api" / "scan.js"
+PRIVACY_SETTINGS = ROOT / "tools" / "privacy-bron.json"
+OLD_CONSENT = "mag mij per e-mail de scan en maximaal twee"
+QUOTES = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"', " ": " "})
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
         "param", "source", "track", "wbr"}
 TEXT_SUFFIXES = {".html", ".xml", ".svg", ".txt", ".js", ".css", ".json", ".md"}
@@ -43,8 +52,11 @@ class PageParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.stack, self.problems, self.ids, self.refs, self.scripts = [], [], {}, [], []
         self.elements = []  # (tag, attrs) van alle elementen
-        self.text_stack = []  # voor de toestemmingstekst
-        self.consent_text = None
+        self.text_stack = []  # (for, tekst) van de labels bij de vinkjes
+        self.label_texts = {}  # for-attribuut van een label.consent -> tekst
+        self.options = []  # waarden van de keuzes in #f-gemeente
+        self._option = None
+        self._in_gemeente = False
         self.saw_doctype = False
 
     def handle_decl(self, decl):
@@ -72,15 +84,21 @@ class PageParser(HTMLParser):
             return
         self.stack.append((tag, self.getpos()[0]))
         if tag == "label" and "consent" in a.get("class", "").split():
-            # Alleen vinkje 1 (for="f-consent") is de verplichte toestemming voor de scan.
-            self.text_stack.append([] if a.get("for") == "f-consent" else None)
+            # for="f-consent" is vinkje 1 (de scan), for="f-vervolg" vinkje 2 (vervolgberichten).
+            self.text_stack.append((a.get("for", ""), []))
+        if tag == "select":
+            self._in_gemeente = a.get("id") == "f-gemeente"
+        if tag == "option" and self._in_gemeente:
+            self._option = (a.get("value"), [])
 
     def handle_startendtag(self, tag, attrs):
         self._attrs(tag, attrs)
 
     def handle_data(self, data):
-        if self.text_stack and self.text_stack[-1] is not None:
-            self.text_stack[-1].append(data)
+        if self.text_stack:
+            self.text_stack[-1][1].append(data)
+        if self._option is not None:
+            self._option[1].append(data)
 
     def handle_endtag(self, tag):
         line = self.getpos()[0]
@@ -88,9 +106,14 @@ class PageParser(HTMLParser):
             self.problems.append(f"regel {line}: sluittag </{tag}> hoort niet bij een leeg element")
             return
         if tag == "label" and self.text_stack:
-            collected = self.text_stack.pop()
-            if collected is not None:
-                self.consent_text = " ".join("".join(collected).split())
+            label_for, collected = self.text_stack.pop()
+            self.label_texts[label_for] = " ".join("".join(collected).split())
+        if tag == "option" and self._option is not None:
+            value, collected = self._option
+            self.options.append(" ".join("".join(collected).split()) if value is None else value)
+            self._option = None
+        if tag == "select":
+            self._in_gemeente = False
         if self.stack and self.stack[-1][0] == tag:
             self.stack.pop()
             return
@@ -114,6 +137,77 @@ def parse(path):
     parser.feed(path.read_text(encoding="utf-8"))
     parser.finish()
     return parser
+
+
+def norm_text(text):
+    """Tekst zonder verschil in aanhalingstekens en witruimte."""
+    return " ".join(text.translate(QUOTES).split())
+
+
+class BlockParser(HTMLParser):
+    """Verzamelt de tekst van elke p, li, th, td, h1 en h3, zonder opmaak."""
+    BLOCKS = {"p", "li", "th", "td", "h1", "h3"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.blocks, self.open = [], []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.BLOCKS:
+            self.open.append([])
+        elif tag == "br" and self.open:
+            self.open[-1].append(" ")
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag in self.BLOCKS:
+            self.handle_endtag(tag)
+
+    def handle_data(self, data):
+        if self.open:
+            self.open[-1].append(data)
+
+    def handle_endtag(self, tag):
+        if tag in self.BLOCKS and self.open:
+            self.blocks.append(norm_text("".join(self.open.pop())))
+
+
+def text_blocks(path):
+    parser = BlockParser()
+    parser.feed(path.read_text(encoding="utf-8"))
+    parser.close()
+    return parser.blocks
+
+
+def js_string(src, name):
+    """De tekst van const NAAM = "..." of `...` + `...`; in scan.js, of None."""
+    found = re.search(rf"const {name} =\s*((?:(?:`[^`]*`|\"[^\"]*\")\s*\+?\s*)+);", src)
+    if not found:
+        return None
+    return " ".join("".join(a or b for a, b in re.findall(r"`([^`]*)`|\"([^\"]*)\"", found.group(1))).split())
+
+
+def privacy_drift(cfg, master):
+    """Vergelijkt dist/privacy.html met de HTML-versie van de bron. Geeft een lijst met problemen."""
+    settings = json.loads(PRIVACY_SETTINGS.read_text(encoding="utf-8"))
+    joined = "\n\n".join(text_blocks(master))
+    problems = []
+    for number, correction in enumerate(settings["correcties"], 1):
+        old, new = ("\n\n".join(norm_text(part) for part in correction[key].split("\n\n"))
+                    for key in ("oud", "nieuw"))
+        if joined.count(old) == 1:
+            joined = joined.replace(old, new)
+        elif new not in joined:
+            problems.append(f"correctie {number} uit tools/privacy-bron.json past niet meer op {master.name}")
+    for field in settings["invulvelden"]:
+        joined = joined.replace(field["tekst"], cfg[field["sleutel"]])
+    expected, actual = joined.split("\n\n"), text_blocks(DIST / "privacy.html")
+    if expected != actual:
+        diff = [line for line in difflib.unified_diff(expected, actual, "bron", "site", lineterm="", n=0)
+                if not line.startswith(("---", "+++", "@@"))]
+        problems.append("verschil met de bron (- bron, + site), draai python3 tools/sync_privacy.py:\n      "
+                        + "\n      ".join(line[:160] for line in diff[:12]))
+    return problems
 
 
 def text_files(base):
@@ -237,14 +331,42 @@ def main():
     check("formulier: maxlength gelijk aan de limieten in de functie", bool(limits) and not mismatch,
           "; ".join(mismatch) or ("LIMITS niet gevonden" if not limits else ""))
 
-    consent_parts = re.search(r"const CONSENT_TEXT =\s*((?:`[^`]*`\s*\+?\s*)+);", function_src)
-    if consent_parts:
-        fn_text = "".join(re.findall(r"`([^`]*)`", consent_parts.group(1)))
-        fn_text = " ".join(fn_text.replace("${config.bedrijfsnaam}", cfg["bedrijfsnaam"]).split())
-        check("toestemmingstekst in de functie is gelijk aan de tekst bij het vinkje",
-              fn_text == index.consent_text, f"\n    pagina:  {index.consent_text}\n    functie: {fn_text}")
-    else:
-        check("toestemmingstekst in de functie gevonden", False, "CONSENT_TEXT niet gevonden in scan.js")
+    fn_consent = js_string(function_src, "CONSENT_TEXT")
+    fn_vervolg = js_string(function_src, "VERVOLG_TEXT")
+    page_consent = index.label_texts.get("f-consent")
+    page_vervolg = index.label_texts.get("f-vervolg", "")
+    if page_vervolg.endswith("(niet verplicht)"):
+        page_vervolg = page_vervolg[: -len("(niet verplicht)")].strip()
+    check("vinkje 1: CONSENT_TEXT in de functie is gelijk aan de tekst op de pagina",
+          fn_consent is not None and fn_consent == page_consent,
+          f"\n    pagina:  {page_consent}\n    functie: {fn_consent}")
+    check("vinkje 2: VERVOLG_TEXT in de functie is gelijk aan de tekst op de pagina",
+          fn_vervolg is not None and fn_vervolg == page_vervolg,
+          f"\n    pagina:  {page_vervolg}\n    functie: {fn_vervolg}")
+
+    gemeenten_match = re.search(r"const GEMEENTEN = \[([^\]]*)\]", function_src)
+    fn_gemeenten = re.findall(r'"([^"]*)"', gemeenten_match.group(1)) if gemeenten_match else []
+    page_gemeenten = [option for option in index.options if option]
+    check("gemeenten: GEMEENTEN in de functie is gelijk aan de keuzelijst",
+          bool(fn_gemeenten) and fn_gemeenten == page_gemeenten,
+          f"\n    pagina:  {page_gemeenten}\n    functie: {fn_gemeenten}")
+
+    main_js = (SRC / "main.js").read_text(encoding="utf-8")
+    fn_email = re.search(r"const EMAIL_RE = (/.+/);", function_src)
+    js_email = re.search(r"var EMAIL_RE = (/.+/);", main_js)
+    check("e-mailcontrole: EMAIL_RE in main.js is gelijk aan die in de functie",
+          bool(fn_email and js_email) and fn_email.group(1) == js_email.group(1),
+          f"\n    main.js: {js_email and js_email.group(1)}\n    functie: {fn_email and fn_email.group(1)}")
+
+    widget = next((a for t, a in index.elements if a.get("id") == "f-turnstile"), {})
+    problems = []
+    if widget.get("data-sitekey") != cfg["turnstile_sitekey"]:
+        problems.append(f"#f-turnstile heeft data-sitekey {widget.get('data-sitekey')!r}, niet de sitekey uit config.json")
+    if "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" not in main_js:
+        problems.append("main.js laadt api.js van Turnstile niet van het vaste adres")
+    if "novalidate" in form:
+        problems.append("het formulier heeft novalidate (dan controleert de browser zonder JavaScript niets)")
+    check("formulier: spamcontrole (Turnstile) en controle door de browser", not problems, "; ".join(problems))
 
     # 5. Headers
     headers = (DIST / "_headers").read_text(encoding="utf-8")
@@ -256,8 +378,11 @@ def main():
         problems.append("geen CSP")
     elif not script_src or "'unsafe-inline'" in script_src.group(1):
         problems.append("script-src ontbreekt of staat 'unsafe-inline' toe")
+    if "https://challenges.cloudflare.com" not in (script_src.group(1) if script_src else ""):
+        problems.append("script-src staat Turnstile (https://challenges.cloudflare.com) niet toe")
     for needed in ["frame-ancestors 'none'", "https://fonts.googleapis.com", "https://fonts.gstatic.com",
                    "https://static.cloudflareinsights.com", "https://cloudflareinsights.com",
+                   "frame-src https://challenges.cloudflare.com",
                    "X-Content-Type-Options: nosniff", "Referrer-Policy:", "Permissions-Policy:"]:
         if needed not in headers:
             problems.append(f"mist {needed}")
@@ -276,9 +401,30 @@ def main():
                     hits.append(f"{p.relative_to(ROOT)} bevat \"{lit}\"")
     check("bedrijfsnaam en domein staan alleen in config.json", not hits, "; ".join(hits))
 
-    # 7. Geen gedachtestreepjes in de teksten
+    # 7. Privacyverklaring: dezelfde vinkjes als het formulier, en gelijk aan de bron
+    privacy_text = norm_text(" ".join(text_blocks(DIST / "privacy.html")))
+    wanted = [fn_consent.split(". ")[0] + "." if fn_consent else "(CONSENT_TEXT niet gevonden)",
+              fn_vervolg or "(VERVOLG_TEXT niet gevonden)"]
+    problems = [f"mist de tekst van een vinkje: {text}" for text in wanted if norm_text(text) not in privacy_text]
+    if OLD_CONSENT in privacy_text:
+        problems.append(f"noemt nog het oude vinkje ({OLD_CONSENT} ...)")
+    check("privacy.html: noemt beide vinkjes met de tekst van nu", not problems, "; ".join(problems))
+
+    settings = json.loads(PRIVACY_SETTINGS.read_text(encoding="utf-8"))
+    master = (ROOT / settings["master_html"]).resolve()
+    if master.is_file():
+        problems = privacy_drift(cfg, master)
+        check(f"privacy.html: gelijk aan {master.parent.name}/{master.name}, op de correcties na", not problems,
+              "; ".join(problems))
+    else:
+        check(f"privacy.html: vergelijking met de bron overgeslagen ({master} bestaat hier niet)", True)
+
+    # 8. Geen gedachtestreepjes in de teksten
     dash_files = []
-    for p in text_files(SRC) + text_files(ROOT / "functions") + [ROOT / "README.md", ROOT / "build.py"]:
+    own_files = sorted(p for base in (ROOT / "tools", ROOT / "tests") for p in base.glob("*")
+                       if p.is_file() and p.name != "check_dist.py")  # dit bestand noemt de streepjes zelf
+    for p in (text_files(SRC) + text_files(ROOT / "functions") + own_files
+              + [ROOT / "README.md", ROOT / "build.py"]):
         if p.is_file() and ("–" in p.read_text(encoding="utf-8") or "—" in p.read_text(encoding="utf-8")):
             dash_files.append(str(p.relative_to(ROOT)))
     check("geen lange of halve kastlijnen in de teksten", not dash_files, ", ".join(dash_files))

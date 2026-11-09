@@ -6,8 +6,11 @@
 //
 // De verwachte status is 500 als de server geen instellingen heeft, 502 met een nepsleutel.
 // Controleert: geen consolefouten, geen CSP-schendingen, geen JavaScript-fouten, de kopieerknop,
-// de controle in de browser, de foutmelding na versturen (zonder crash) en een geslaagde
-// verzending (nagebootst, er gaat geen mail weg).
+// de controle in de browser, de spamcontrole (Turnstile met de testsleutel uit config.json),
+// de foutmelding na versturen (zonder crash), een geslaagde verzending (nagebootst, er gaat geen
+// mail weg), hetzelfde aanvraag_id bij een tweede poging, het formulier zonder JavaScript en
+// de breedte op een telefoon.
+// Nodig: npm install en npx playwright install chromium in tests/ (zie README).
 const { chromium } = require('playwright');
 const path = require('path');
 const config = require(path.join(__dirname, '..', 'config.json'));
@@ -81,19 +84,29 @@ async function cspViolations(page) {
   check('leeg versturen geeft melding in de browser', emptyMsg.startsWith('Vul nog in: je naam'), emptyMsg);
 
   // 4. Geldig invullen en versturen: de server geeft 500 (geen instellingen) of 502 (nepsleutel)
-  await page.fill('#f-naam', 'Test Persoon');
-  await page.fill('#f-bedrijf', 'Testhoveniers');
-  await page.fill('#f-email', 'test@example.com');
-  await page.fill('#f-tel', '0612345678');
-  await page.selectOption('#f-gemeente', 'Huizen');
-  await page.fill('#f-site', 'testhoveniers.nl');
-  await page.check('#f-consent');
+  const fillForm = async (p) => {
+    await p.fill('#f-naam', 'Test Persoon');
+    await p.fill('#f-bedrijf', 'Testhoveniers');
+    await p.fill('#f-email', 'test@example.com');
+    await p.fill('#f-tel', '0612345678');
+    await p.selectOption('#f-gemeente', 'Huizen');
+    await p.fill('#f-site', 'testhoveniers.nl');
+    await p.check('#f-consent');
+  };
+  // Turnstile laadt zodra je in het formulier klikt of typt. Met de testsleutel komt er snel een token.
+  const tokenReady = (p) => p.waitForFunction(() => {
+    const t = document.querySelector('#scan-form [name="cf-turnstile-response"]');
+    return Boolean(t && t.value);
+  }, null, { timeout: 30000 }).then(() => true, () => false);
+  await fillForm(page);
+  check('spamcontrole (Turnstile) geeft een token', await tokenReady(page));
   const [apiResp] = await Promise.all([
     page.waitForResponse((r) => r.url().endsWith('/api/scan') && r.request().method() === 'POST', { timeout: 30000 }),
     page.click('#f-submit'),
   ]);
   const sent = JSON.parse(apiResp.request().postData() || '{}');
   check('verzoek bevat alle velden en de lege honeypot', sent.toestemming === 'on' && sent.bedrijfswebsite_extra === '' && sent.gemeente === 'Huizen', JSON.stringify(sent));
+  check('verzoek bevat de token en een aanvraag_id', Boolean(sent['cf-turnstile-response']) && /^[A-Za-z0-9-]{8,64}$/.test(sent.aanvraag_id || ''), JSON.stringify(sent));
   check(`server antwoordt ${expectedStatus}`, apiResp.status() === expectedStatus, apiResp.status());
   await page.waitForFunction(() => !document.getElementById('f-submit').disabled, null, { timeout: 15000 });
   const errMsg = await page.textContent('#form-msg');
@@ -104,12 +117,25 @@ async function cspViolations(page) {
   check('verstuurknop werkt weer na de fout', !(await page.isDisabled('#f-submit')));
   if (shotDir) await page.locator('#scan').screenshot({ path: path.join(shotDir, `formulier-${expectedStatus}.png`) });
 
-  // 5. Geslaagde verzending nabootsen (geen echte mail)
-  await page.route('**/api/scan', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+  // 5. Geslaagde verzending nabootsen (geen echte mail). Na de fout vraagt de widget een nieuwe token.
+  const mocked = [];
+  await page.route('**/api/scan', (route) => {
+    mocked.push(JSON.parse(route.request().postData() || '{}'));
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+  });
+  await tokenReady(page);
   await page.click('#f-submit');
   await page.waitForFunction(() => document.getElementById('form-msg').textContent.startsWith('Dank je'), null, { timeout: 5000 }).catch(() => {});
   const okMsg = await page.textContent('#form-msg');
   check('bij 200 toont de pagina "Dank je" en leegt het formulier', okMsg.startsWith('Dank je.') && (await page.inputValue('#f-naam')) === '', okMsg);
+  check('tweede poging met dezelfde velden heeft hetzelfde aanvraag_id', mocked.length === 1 && mocked[0].aanvraag_id === sent.aanvraag_id,
+    `${sent.aanvraag_id} en ${mocked[0] && mocked[0].aanvraag_id}`);
+  await fillForm(page);
+  await tokenReady(page);
+  await page.click('#f-submit');
+  for (let i = 0; i < 50 && mocked.length < 2; i += 1) await page.waitForTimeout(100);
+  check('na een gelukte aanvraag krijgt een nieuwe aanvraag een nieuw id', mocked.length === 2 && mocked[1].aanvraag_id && mocked[1].aanvraag_id !== mocked[0].aanvraag_id,
+    JSON.stringify(mocked.map((m) => m.aanvraag_id)));
   await page.unroute('**/api/scan');
 
   check('homepage: geen consolefouten bij het laden', loadErrors.length === 0, loadErrors.join(' | '));
@@ -144,7 +170,42 @@ async function cspViolations(page) {
     await p.close();
   }
 
-  // 7. Telefoonbreedte: geen horizontaal scrollen
+  // 7a. Turnstile geblokkeerd (bijvoorbeeld door een adblocker): de melding noemt het telefoonnummer
+  const blocked = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await blocked.route('https://challenges.cloudflare.com/**', (route) => route.abort());
+  const b = await blocked.newPage();
+  const bErrors = [];
+  b.on('pageerror', (e) => bErrors.push(String(e)));
+  await b.goto(`${base}/`, { waitUntil: 'networkidle' });
+  await fillForm(b);
+  await b.waitForTimeout(1000);
+  await b.click('#f-submit');
+  const blockedMsg = await b.textContent('#form-msg');
+  check('Turnstile geblokkeerd: melding met telefoonnummer, geen JavaScript-fout',
+    blockedMsg.includes('De controle tegen spam lukt nu niet.') && blockedMsg.includes(config.telefoon) && bErrors.length === 0,
+    `"${blockedMsg}" ${bErrors.join(' | ')}`);
+  await blocked.close();
+
+  // 7b. Zonder JavaScript: de browser controleert de verplichte velden, de server antwoordt met een pagina
+  const nojs = await browser.newContext({ viewport: { width: 1280, height: 900 }, javaScriptEnabled: false });
+  const n = await nojs.newPage();
+  await n.goto(`${base}/`, { waitUntil: 'load' });
+  let posted = 0;
+  n.on('request', (r) => { if (r.url().endsWith('/api/scan')) posted += 1; });
+  await n.click('#f-submit');
+  await n.waitForTimeout(800);
+  check('zonder JavaScript: de browser houdt een leeg formulier tegen', posted === 0 && n.url() === `${base}/`, `${posted} verzoek(en), adres ${n.url()}`);
+  await fillForm(n);
+  const [noJsResp] = await Promise.all([n.waitForNavigation({ timeout: 15000 }), n.click('#f-submit')]);
+  const noJsText = await n.textContent('body');
+  check('zonder JavaScript: zonder spamcontrole 403, met telefoonnummer en de terugknop',
+    noJsResp && noJsResp.status() === 403 && noJsText.includes(config.telefoon) && noJsText.includes('terugknop'),
+    `${noJsResp && noJsResp.status()}: ${noJsText.trim().slice(0, 200)}`);
+  await n.goBack();
+  check('zonder JavaScript: na de terugknop staat je naam er nog', (await n.inputValue('#f-naam')) === 'Test Persoon', await n.inputValue('#f-naam'));
+  await nojs.close();
+
+  // 8. Telefoonbreedte: geen horizontaal scrollen, ook niet als de spamcontrole er staat
   const mobile = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
   for (const url of ['/', '/privacy', '/bestaat-niet']) {
     const m = await mobile.newPage();
@@ -154,6 +215,18 @@ async function cspViolations(page) {
     if (shotDir && url === '/') await m.screenshot({ path: path.join(shotDir, 'home-mobiel.png') });
     if (shotDir && url === '/bestaat-niet') await m.screenshot({ path: path.join(shotDir, '404-mobiel.png') });
     await m.close();
+  }
+  for (const width of [375, 320]) {
+    const ctx = await browser.newContext({ viewport: { width, height: 800 }, isMobile: true, hasTouch: true });
+    const m = await ctx.newPage();
+    await m.goto(`${base}/`, { waitUntil: 'networkidle' });
+    await m.focus('#f-naam');
+    const loaded = await tokenReady(m);
+    await m.waitForTimeout(500);
+    const overflow = await m.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    check(`telefoon (${width}px) /: spamcontrole geladen, geen horizontaal scrollen`, loaded && overflow <= 0, `token ${loaded}, ${overflow}px te breed`);
+    if (shotDir) await m.locator('#scan-form').screenshot({ path: path.join(shotDir, `formulier-${width}px.png`) });
+    await ctx.close();
   }
   const dark = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'dark' });
   const d = await dark.newPage();

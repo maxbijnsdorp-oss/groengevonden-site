@@ -4,6 +4,9 @@
 Gebruik:
     python3 build.py            bouwen; waarschuwt als er nog [invulvelden] in config.json staan
     python3 build.py --streng   bouwen en stoppen met een fout als er nog [invulvelden] staan
+                                of als turnstile_sitekey nog de testsleutel is
+Op Cloudflare Pages staat de strenge controle vanzelf aan voor de productiebranch (PRODUCTIE_BRANCH,
+Pages zet CF_PAGES_BRANCH). Builds van andere branches (previews) mogen nog invulvelden hebben.
 
 Regels:
 - {{sleutel}} wordt vervangen door de waarde uit config.json, in .html, .xml, .svg, .txt,
@@ -20,6 +23,7 @@ Alleen de standaardbibliotheek van Python (3.8 of nieuwer) is nodig.
 import argparse
 import html
 import json
+import os
 import re
 import shutil
 import sys
@@ -29,10 +33,12 @@ ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
 DIST = ROOT / "dist"
 CONFIG = ROOT / "config.json"
+# Heet de productiebranch in Cloudflare Pages anders, pas dit dan aan.
+PRODUCTIE_BRANCH = "main"
 
 REQUIRED_KEYS = [
     "bedrijfsnaam", "domein", "email", "telefoon", "telefoon_e164",
-    "eigenaar", "kvk", "btw_id", "plaats",
+    "eigenaar", "kvk", "btw_id", "plaats", "turnstile_sitekey",
 ]
 HTML_SUFFIXES = {".html"}
 XML_SUFFIXES = {".xml", ".svg"}
@@ -48,6 +54,11 @@ BRACKETS = re.compile(r"\[[^\]]+\]")
 DOMAIN = re.compile(r"^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
 EMAIL = re.compile(r"^[^\s@<>\"]+@[^\s@<>\"]+\.[^\s@<>\"]+$")
 E164 = re.compile(r"^\+[1-9][0-9]{7,14}$")
+# Letters (ook met accent), cijfers, spaties en & ' . -. Dan blijft de afzender van de formuliermail geldig.
+BEDRIJFSNAAM = re.compile(r"^[^\W_](?:[^\W_]|[ &'.\-])*$")
+SITEKEY = re.compile(r"^[0-9A-Za-z_-]{10,100}$")
+# De testsleutels van Turnstile (https://developers.cloudflare.com/turnstile/troubleshooting/testing/).
+TURNSTILE_TEST_KEY = re.compile(r"^[123]x0{20}[A-Z]{2}$")
 
 
 def is_open_field(value):
@@ -90,6 +101,16 @@ def load_config():
         errors.append(f'"telefoon_e164" moet de vorm +31612345678 hebben. Nu staat er: {cfg["telefoon_e164"]}')
     if not is_open_field(cfg["email"]) and not EMAIL.match(cfg["email"]):
         errors.append(f'"email" is geen geldig e-mailadres: {cfg["email"]}')
+    if not BEDRIJFSNAAM.match(cfg["bedrijfsnaam"]):
+        errors.append(
+            '"bedrijfsnaam" mag alleen letters, cijfers, spaties en de tekens & \' . - bevatten, '
+            f'en moet beginnen met een letter of cijfer. Nu staat er: {cfg["bedrijfsnaam"]}'
+        )
+    if not SITEKEY.match(cfg["turnstile_sitekey"]):
+        errors.append(
+            '"turnstile_sitekey" moet de sitekey van je Turnstile-widget zijn (letters, cijfers, - en _). '
+            f'Nu staat er: {cfg["turnstile_sitekey"]}'
+        )
     return cfg, errors
 
 
@@ -200,6 +221,8 @@ def build(strict):
                 errors.append(f"{rel}, regel {lineno}: er staat nog {{{{ in: {line.strip()[:100]}")
 
     open_fields = [key for key, value in cfg.items() if is_open_field(value)]
+    if TURNSTILE_TEST_KEY.match(cfg["turnstile_sitekey"]):
+        open_fields.append("turnstile_sitekey (nog de testsleutel)")
     if strict and open_fields:
         errors.append("Nog niet ingevuld in config.json: " + ", ".join(open_fields) + ".")
     if errors:
@@ -217,7 +240,12 @@ def main():
     parser = argparse.ArgumentParser(description="Bouw de website van src/ naar dist/.")
     parser.add_argument("--streng", "--strict", dest="strict", action="store_true",
                         help="stop met een fout als config.json nog [invulvelden] bevat")
-    build(parser.parse_args().strict)
+    args = parser.parse_args()
+    branch = os.environ.get("CF_PAGES_BRANCH", "")
+    strict = args.strict or branch == PRODUCTIE_BRANCH
+    if strict and not args.strict:
+        print(f"Strenge controle staat aan: dit is een build van de productiebranch ({branch}).")
+    build(strict)
 
 
 if __name__ == "__main__":

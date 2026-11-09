@@ -8,5 +8,6 @@
   "kvk": "[KvK-nummer]",
   "btw_id": "[btw-id]",
   "plaats": "Muiderberg",
-  "contactpersoon": "Max [achternaam]"
+  "contactpersoon": "Max [achternaam]",
+  "turnstile_sitekey": "1x00000000000000000000AA"
 }

@@ -1,28 +1,43 @@
 /**
  * Cloudflare Pages Function voor het scanformulier: POST /api/scan
  *
- * - Neemt JSON (van main.js) of een gewoon formulier (zonder JavaScript) aan.
+ * - Neemt JSON (van main.js) of een gewoon formulier (application/x-www-form-urlencoded) aan.
+ *   multipart/form-data weigeren we (415): het formulier gebruikt dat niet.
+ * - Leest nooit meer dan MAX_BODY_BYTES, ook niet zonder Content-Length (chunked).
  * - Controleert naam, bedrijf, e-mail, gemeente en de toestemming.
  * - Honeypot: is het verborgen veld bedrijfswebsite_extra ingevuld, dan antwoorden we 200
  *   en sturen we niets (spambot).
- * - Verstuurt een platte-tekstmail via de Resend HTTP API.
+ * - Spamcontrole met Cloudflare Turnstile: zonder geldige token (veld cf-turnstile-response) 403.
+ * - Verstuurt een platte-tekstmail via de Resend HTTP API, met een Idempotency-Key tegen dubbele mails.
  *
  * Omgevingsvariabelen (Cloudflare: Settings > Variables and Secrets):
- *   RESEND_API_KEY  geheime API-sleutel van Resend (als Secret)
- *   FROM_EMAIL      afzender op een domein dat in Resend is geverifieerd,
- *                   bijvoorbeeld formulier@jouwdomein.nl (de bedrijfsnaam zet de functie er zelf voor)
- *   TO_EMAIL        waar de aanvraag heen moet; meerdere adressen met komma's scheiden
+ *   RESEND_API_KEY        geheime API-sleutel van Resend (als Secret)
+ *   TURNSTILE_SECRET_KEY  geheime sleutel van de Turnstile-widget (als Secret)
+ *   FROM_EMAIL            afzender op een domein dat in Resend is geverifieerd,
+ *                         bijvoorbeeld formulier@jouwdomein.nl (de bedrijfsnaam zet de functie er zelf voor)
+ *   TO_EMAIL              waar de aanvraag heen moet; meerdere adressen met komma's scheiden
+ * Alleen voor tests, en alleen met een adres op 127.0.0.1 of localhost:
+ *   RESEND_API_URL, TURNSTILE_VERIFY_URL
  *
- * Statuscodes: 200 verstuurd (of honeypot), 400 velden ontbreken of te lang, 403 ander domein,
- * 405 andere methode dan POST, 413 te groot, 415 verkeerd formaat,
- * 500 instellingen ontbreken, 502 Resend gaf een fout of was niet bereikbaar.
+ * Statuscodes: 200 verstuurd (of honeypot), 400 velden ontbreken of te lang, 403 ander domein of
+ * geen geldige spamcontrole, 405 andere methode dan POST, 413 te groot, 415 verkeerd formaat,
+ * 500 instellingen ontbreken, 502 Resend of Turnstile gaf een fout of was niet bereikbaar.
+ * Het antwoord bevat alleen ok en error. De details staan in de logs (console.error).
  */
 import config from "../../config.json";
 
 const RESEND_URL = "https://api.resend.com/emails";
+const TURNSTILE_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const RESEND_TIMEOUT_MS = 10000;
+const TURNSTILE_TIMEOUT_MS = 10000;
 const MAX_BODY_BYTES = 16 * 1024;
 const HONEYPOT = "bedrijfswebsite_extra";
+const TOKEN_FIELD = "cf-turnstile-response";
+// Een Turnstile-token is hooguit 2048 tekens lang.
+const MAX_TOKEN_LENGTH = 2048;
+// aanvraag_id van main.js: één id per ingevuld formulier.
+const ID_RE = /^[A-Za-z0-9-]{8,64}$/;
+const SEND_FAILED = "Versturen lukte niet. Probeer het later opnieuw.";
 
 // Maximale lengte per veld. Gelijk aan de maxlength in src/index.html (gemeente is een keuzelijst).
 const LIMITS = { naam: 100, bedrijf: 120, email: 254, telefoon: 30, gemeente: 60, website: 300 };
@@ -40,15 +55,27 @@ const FIELD_NAMES = {
   gemeente: "de gemeente",
   website: "de website",
 };
-const EMAIL_RE = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[^\s@<>(),;:"]+$/;
+// Alleen gewone ASCII-adressen: geen spaties, komma's, <>, aanhalingstekens, punt aan begin of eind
+// van het deel voor de @, twee punten op rij of een domein zonder extensie.
+// Dezelfde regel staat in src/main.js. tests/check_dist.py controleert dat ze gelijk zijn.
+const EMAIL_RE = /^[A-Za-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+\/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/;
+// Gelijk aan de keuzes bij #f-gemeente in src/index.html. tests/check_dist.py controleert dat.
+const GEMEENTEN = [
+  "Gooise Meren", "Huizen", "Blaricum", "Laren", "Eemnes", "Hilversum", "Wijdemeren", "Weesp",
+  "Almere", "Stichtse Vecht", "Baarn", "Soest", "De Ronde Venen", "Andere gemeente",
+];
 
-// Dezelfde teksten als bij de twee vinkjes in src/index.html. Pas ze samen aan.
-// tests/check_dist.py controleert na elke build dat CONSENT_TEXT gelijk is aan vinkje 1.
+// Dezelfde teksten als bij de twee vinkjes in src/index.html. Pas ze samen aan, en ook de
+// privacyverklaring. tests/check_dist.py controleert na elke build dat ze gelijk zijn.
 const CONSENT_TEXT =
   `Stuur mij de gratis scan per e-mail. ` +
   `Hoe we met je gegevens omgaan, staat in de privacyverklaring.`;
 const VERVOLG_TEXT =
   "Ja, je mag me daarna hooguit twee berichten sturen over wat je zou doen en wat het kost. Stoppen kan altijd met STOP.";
+const REPLY_NOTE = "Als je op deze mail antwoordt, gaat je antwoord naar de aanvrager.";
+const NO_REPLY_NOTE =
+  "LET OP: Resend weigerde dit e-mailadres als antwoordadres. Je antwoord gaat dus niet vanzelf naar de aanvrager. " +
+  "Controleer het adres en mail zelf.";
 
 const BASE_HEADERS = {
   "Cache-Control": "no-store",
@@ -59,8 +86,8 @@ const BASE_HEADERS = {
 export async function onRequestPost({ request, env }) {
   const contentType = (request.headers.get("Content-Type") || "").toLowerCase();
   const isJson = contentType.includes("application/json");
-  const isMultipart = contentType.includes("multipart/form-data");
-  const isForm = isMultipart || contentType.includes("application/x-www-form-urlencoded");
+  // Alleen een gewoon formulier. multipart/form-data (bestanden) gebruikt het formulier niet: 415.
+  const isForm = contentType.includes("application/x-www-form-urlencoded");
   // Een gewoon formulier (browser zonder JavaScript) krijgt een HTML-pagina terug, de rest JSON.
   const wantsHtml = !isJson && (request.headers.get("Accept") || "").includes("text/html");
   const reply = (status, body) => (wantsHtml ? htmlResponse(status, body) : jsonResponse(status, body));
@@ -77,7 +104,7 @@ export async function onRequestPost({ request, env }) {
 
   let raw;
   try {
-    raw = await readBody(request, isJson, isMultipart);
+    raw = await readBody(request, isJson);
   } catch (err) {
     if (err && err.message === "te groot") {
       return reply(413, { ok: false, error: "Je aanvraag is te groot." });
@@ -98,8 +125,8 @@ export async function onRequestPost({ request, env }) {
   const missing = [];
   if (!data.naam) missing.push("naam");
   if (!data.bedrijf) missing.push("bedrijf");
-  if (!EMAIL_RE.test(data.email)) missing.push("email");
-  if (!data.gemeente) missing.push("gemeente");
+  if (!validEmail(data.email)) missing.push("email");
+  if (!GEMEENTEN.includes(data.gemeente)) missing.push("gemeente");
   const tooLong = Object.keys(LIMITS).filter((key) => data[key].length > LIMITS[key]);
 
   if (missing.length || tooLong.length || !consent) {
@@ -128,7 +155,17 @@ export async function onRequestPost({ request, env }) {
     });
   }
 
-  const missingEnv = ["RESEND_API_KEY", "FROM_EMAIL", "TO_EMAIL"].filter(
+  // Zonder token van de spamcontrole versturen we niets. Bezoekers zonder JavaScript hebben geen token.
+  const token = typeof raw[TOKEN_FIELD] === "string" ? raw[TOKEN_FIELD].trim() : "";
+  if (!token || token.length > MAX_TOKEN_LENGTH) {
+    return reply(403, {
+      ok: false,
+      error: "De controle tegen spam ontbreekt. Het formulier werkt alleen als JavaScript aan staat.",
+    });
+  }
+
+  // Welke instelling ontbreekt, staat alleen in de logs. De bezoeker hoeft dat niet te zien.
+  const missingEnv = ["RESEND_API_KEY", "TURNSTILE_SECRET_KEY", "FROM_EMAIL", "TO_EMAIL"].filter(
     (name) => !env[name] || !String(env[name]).trim()
   );
   if (missingEnv.length) {
@@ -136,11 +173,19 @@ export async function onRequestPost({ request, env }) {
     return reply(500, {
       ok: false,
       error: "Het formulier is nog niet klaar voor gebruik. Je aanvraag is niet verstuurd.",
-      ontbrekende_instellingen: missingEnv,
     });
   }
 
-  const receivedAt = new Date().toISOString();
+  const verified = await verifyTurnstile(env, token, request.headers.get("CF-Connecting-IP"));
+  if (verified === "geweigerd") {
+    return reply(403, { ok: false, error: "De controle tegen spam is niet gelukt of verlopen. Probeer het opnieuw." });
+  }
+  if (verified !== "ok") {
+    return reply(502, { ok: false, error: SEND_FAILED });
+  }
+
+  // Geen tijdstip in de tekst: bij een tweede poging moet de inhoud precies gelijk zijn, anders werkt de
+  // Idempotency-Key niet. Het tijdstip van de aanvraag is de datum van de mail zelf.
   const text = [
     "Nieuwe aanvraag voor een gratis vindbaarheidsscan via de website.",
     "",
@@ -156,59 +201,132 @@ export async function onRequestPost({ request, env }) {
     `Vinkje 2 (vervolgberichten): ${vervolg ? "aan" : "uit, stuur ALLEEN de scan en geen vervolgmails"}. Tekst:`,
     `"${VERVOLG_TEXT}"`,
     "",
-    `Ontvangen op: ${receivedAt} (UTC)`,
-    "",
-    "Als je op deze mail antwoordt, gaat je antwoord naar de aanvrager.",
+    "Het tijdstip van de aanvraag is de datum en tijd van deze mail.",
+    REPLY_NOTE,
   ].join("\n");
 
   const fromAddress = String(env.FROM_EMAIL).trim();
-  const from = fromAddress.includes("<")
-    ? fromAddress
-    : `${config.bedrijfsnaam.replace(/[<>"\\]/g, "").trim()} <${fromAddress}>`;
+  // De naam staat tussen aanhalingstekens. Dan breken tekens als , : ; @ in de naam de From-regel niet
+  // (RFC 5322). build.py laat in de bedrijfsnaam alleen letters, cijfers, spaties en & ' . - toe.
+  const name = config.bedrijfsnaam.replace(/["\\<>\r\n]/g, "").trim();
+  const from = fromAddress.includes("<") ? fromAddress : `"${name}" <${fromAddress}>`;
   const to = String(env.TO_EMAIL)
     .split(",")
     .map((address) => address.trim())
     .filter(Boolean);
+  let payload = {
+    from,
+    to,
+    reply_to: data.email,
+    subject: `Scanaanvraag: ${data.bedrijf} (${data.gemeente})`,
+    text,
+  };
 
-  let res;
+  // Idempotency-Key: zelfde sleutel en zelfde inhoud binnen 24 uur, dan verstuurt Resend niet nog een keer.
+  // main.js stuurt één aanvraag_id per ingevuld formulier. Zonder id (geen JavaScript) maken we de sleutel
+  // uit de datum en de inhoud.
+  const id = typeof raw.aanvraag_id === "string" && ID_RE.test(raw.aanvraag_id) ? raw.aanvraag_id : "";
+  let key = id
+    ? `scan-${id}`
+    : `scan-${await sha256Hex(`${new Date().toISOString().slice(0, 10)}\n${JSON.stringify(payload)}`)}`;
+
+  let res = await sendToResend(env, payload, key);
+  // Weigert Resend het verzoek (400 of 422), bijvoorbeeld om het antwoordadres? Dan nog één keer zonder
+  // reply_to. Het adres staat ook in de tekst, dus de aanvraag komt toch aan.
+  if (res && (res.status === 400 || res.status === 422)) {
+    await logResendError(res);
+    payload = { ...payload, text: text.replace(REPLY_NOTE, NO_REPLY_NOTE) };
+    delete payload.reply_to;
+    key = `${key}-zonder-antwoordadres`;
+    res = await sendToResend(env, payload, key);
+  }
+  // 409: de sleutel is al gebruikt voor andere inhoud, of een eerdere poging loopt nog.
+  // Liever een dubbele mail dan een aanvraag die zoekraakt, dus nog één keer met een nieuwe sleutel.
+  if (res && res.status === 409) {
+    await logResendError(res);
+    res = await sendToResend(env, payload, `${key}-opnieuw`);
+  }
+  if (!res) {
+    return reply(502, { ok: false, error: SEND_FAILED });
+  }
+  if (!res.ok) {
+    await logResendError(res);
+    if (res.status === 429) {
+      // Limiet van Resend bereikt (het gratis plan: 100 mails per dag). Vraag de bezoeker te bellen.
+      return reply(502, {
+        ok: false,
+        error: `Het formulier is nu te druk. Je aanvraag is niet verstuurd. Bel of app ons op ${config.telefoon}, dan maken we je scan toch.`,
+      });
+    }
+    return reply(502, { ok: false, error: SEND_FAILED });
+  }
+
+  return reply(200, { ok: true });
+}
+
+// Eén verzoek aan Resend. Geeft het antwoord, of null als Resend niet bereikbaar was of te traag.
+async function sendToResend(env, payload, key) {
   try {
-    res = await fetch(RESEND_URL, {
+    return await fetch(testUrl(env.RESEND_API_URL) || RESEND_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${String(env.RESEND_API_KEY).trim()}`,
         "Content-Type": "application/json",
         // Resend weigert verzoeken zonder User-Agent met een 403.
         "User-Agent": "scanformulier/1.0",
+        "Idempotency-Key": key,
       },
-      body: JSON.stringify({
-        from,
-        to,
-        reply_to: data.email,
-        subject: `Scanaanvraag: ${data.bedrijf} (${data.gemeente})`,
-        text,
-      }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(RESEND_TIMEOUT_MS),
     });
   } catch (err) {
     console.error(`scan: Resend niet bereikbaar: ${err && err.name}: ${err && err.message}`);
-    return reply(502, {
-      ok: false,
-      error: "Versturen lukte niet. Probeer het later opnieuw.",
-      resend_status: null,
-    });
+    return null;
   }
+}
 
-  if (!res.ok) {
-    const detail = (await res.text().catch(() => "")).slice(0, 300);
-    console.error(`scan: Resend gaf status ${res.status}: ${detail}`);
-    return reply(502, {
-      ok: false,
-      error: "Versturen lukte niet. Probeer het later opnieuw.",
-      resend_status: res.status,
+async function logResendError(res) {
+  const detail = (await res.text().catch(() => "")).slice(0, 300);
+  console.error(`scan: Resend gaf status ${res.status}: ${detail}`);
+}
+
+// Vraagt Cloudflare of de token van de spamcontrole echt is. Een token werkt één keer en 300 seconden.
+// Geeft "ok", "geweigerd" (token klopt niet of is verlopen) of "fout" (onbereikbaar, of onze sleutel klopt niet).
+async function verifyTurnstile(env, token, ip) {
+  const form = new URLSearchParams({ secret: String(env.TURNSTILE_SECRET_KEY).trim(), response: token });
+  if (ip) form.set("remoteip", ip);
+  let result;
+  try {
+    const res = await fetch(testUrl(env.TURNSTILE_VERIFY_URL) || TURNSTILE_URL, {
+      method: "POST",
+      body: form,
+      signal: AbortSignal.timeout(TURNSTILE_TIMEOUT_MS),
     });
+    result = await res.json();
+  } catch (err) {
+    console.error(`scan: Turnstile niet bereikbaar: ${err && err.name}: ${err && err.message}`);
+    return "fout";
   }
+  if (result && result.success === true) return "ok";
+  const codes = Array.isArray(result && result["error-codes"]) ? result["error-codes"] : [];
+  console.error(`scan: Turnstile weigerde: ${codes.join(", ") || "geen foutcode"}`);
+  return codes.some((code) => /secret|internal-error/.test(code)) ? "fout" : "geweigerd";
+}
 
-  return reply(200, { ok: true });
+// Alleen voor tests: een ander adres voor Resend of Turnstile, maar alleen op deze computer.
+function testUrl(value) {
+  const url = String(value || "").trim();
+  return /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(url) ? url : "";
+}
+
+async function sha256Hex(text) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function validEmail(value) {
+  // Hooguit 254 tekens in totaal en 64 voor de @.
+  return value.length <= LIMITS.email && value.indexOf("@") <= 64 && EMAIL_RE.test(value);
 }
 
 // Alle andere methodes (GET, PUT, OPTIONS, ...) krijgen 405.
@@ -219,27 +337,47 @@ export async function onRequest() {
   });
 }
 
-async function readBody(request, isJson, isMultipart) {
-  if (isMultipart) {
-    const form = await request.formData();
-    const out = {};
-    for (const [key, value] of form) if (typeof value === "string") out[key] = value;
-    return out;
-  }
-  const body = await request.text();
-  if (body.length > MAX_BODY_BYTES) throw new Error("te groot");
+async function readBody(request, isJson) {
+  const body = await readLimited(request);
   if (!isJson) return Object.fromEntries(new URLSearchParams(body));
   const parsed = JSON.parse(body);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("geen object");
   return parsed;
 }
 
-// Maakt van een waarde een nette regel tekst: geen stuurtekens, geen onzichtbare tekens, geen enters.
+// Leest de body stukje voor stukje en stopt zodra het meer dan MAX_BODY_BYTES bytes is.
+// Zo helpt ook een verzoek zonder Content-Length (Transfer-Encoding: chunked) niet om meer te sturen.
+async function readLimited(request) {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => {});
+      throw new Error("te groot");
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+// Maakt van een waarde een nette regel tekst: geen stuurtekens (ook niet U+0080 tot U+009F),
+// geen onzichtbare tekens (zacht afbreekstreepje, richtingstekens, tekens zonder breedte), geen enters.
 function clean(value) {
   if (typeof value !== "string" && typeof value !== "number") return "";
   return String(value)
-    .replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g, "")
-    .replace(/[\u0000-\u001f\u007f\s]+/g, " ")
+    .replace(/[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g, "")
+    .replace(/[\u0000-\u001f\u007f-\u009f\s]+/g, " ")
     .trim();
 }
 
@@ -277,10 +415,14 @@ function htmlResponse(status, body) {
   const ok = status < 400;
   const title = ok ? "Dank je" : "Dat lukte niet";
   let message = ok ? "Je scan komt binnen twee werkdagen in je mailbox." : body.error;
-  if (status >= 500) message += ` Bellen of appen kan ook: ${config.telefoon}.`;
+  // Bij een fout in de velden helpt de terugknop. Bij andere fouten noemen we ook het telefoonnummer.
+  if (!ok && status !== 400 && !message.includes(config.telefoon)) {
+    message += ` Bellen of appen kan ook: ${config.telefoon}.`;
+  }
+  // Geen link terug: die laadt het formulier leeg. Met de terugknop blijft wat je invulde meestal staan.
   const back = ok
     ? '<a href="/">Terug naar de website</a>'
-    : '<a href="/#scan">Terug naar het formulier</a>';
+    : "Ga met de terugknop van je browser terug naar het formulier. Wat je had ingevuld, staat er dan meestal nog.";
   const html = `<!doctype html>
 <html lang="nl">
 <head>

@@ -1,0 +1,54 @@
+{
+  "uitleg": [
+    "Gebruikt door tools/sync_privacy.py (maakt src/privacy.html) en tests/check_dist.py (controleert dist/privacy.html).",
+    "bron: de privacyverklaring in Markdown. Deel 1 daarvan komt op de site.",
+    "master_html: de HTML-versie van die bron. tests/check_dist.py vergelijkt de site daarmee.",
+    "invulvelden: tekst in de bron, en de sleutel uit config.json die op de site op die plek komt.",
+    "correcties: plekken waar de bron nog niet klopt met het formulier op deze site. Gewone tekst, zonder Markdown. Een lege regel (\\n\\n) begint een nieuwe alinea.",
+    "Staat een correctie al in de bron, haal hem dan hier weg."
+  ],
+  "bron": "../10-Privacyverklaring.md",
+  "master_html": "../website/privacy.html",
+  "invulvelden": [
+    {"tekst": "Max [Max achternaam]", "sleutel": "contactpersoon", "streepjes": true},
+    {"tekst": "[naam ouder]", "sleutel": "eigenaar", "streepjes": true},
+    {"tekst": "[KvK-nummer]", "sleutel": "kvk", "streepjes": true},
+    {"tekst": "[e-mailadres]", "sleutel": "email", "streepjes": true},
+    {"tekst": "[website]", "sleutel": "domein", "streepjes": false},
+    {"tekst": "groen-gevonden.nl", "sleutel": "domein", "streepjes": false},
+    {"tekst": "Groen Gevonden", "sleutel": "bedrijfsnaam", "streepjes": false},
+    {"tekst": "Muiderberg", "sleutel": "plaats", "streepjes": false}
+  ],
+  "correcties": [
+    {
+      "waarom": "Het formulier heeft sinds commit b2e18e3 twee vinkjes: de scan (verplicht) en vervolgberichten (niet verplicht). De gemeente is verplicht, de website niet.",
+      "oud": "Vraag je een gratis vindbaarheidsscan aan, dan vul je in: je naam, je bedrijfsnaam, je e-mailadres, en de link naar je website of je Google Bedrijfsprofiel. Een telefoonnummer is niet verplicht. Bij het formulier staat een vinkje: \"Ja, Groen Gevonden mag mij per e-mail de scan en maximaal twee vervolgberichten sturen.\" Zonder dat vinkje versturen we het formulier niet, want zonder jouw toestemming mogen we je niet mailen. Je toestemming kun je altijd intrekken door STOP te antwoorden.",
+      "nieuw": "Vraag je een gratis vindbaarheidsscan aan, dan vul je in: je naam, je bedrijfsnaam, je e-mailadres en je gemeente. Je telefoonnummer en de link naar je website of je Google Bedrijfsprofiel zijn niet verplicht. Bij het formulier staan twee vinkjes. Het eerste is verplicht: \"Stuur mij de gratis scan per e-mail.\" Zonder dat vinkje versturen we het formulier niet, want zonder jouw toestemming mogen we je niet mailen. Het tweede vinkje is niet verplicht: \"Ja, je mag me daarna hooguit twee berichten sturen over wat je zou doen en wat het kost. Stoppen kan altijd met STOP.\" Zet je alleen het eerste vinkje aan, dan krijg je alleen de scan en geen vervolgberichten. Je toestemming kun je altijd intrekken door STOP te antwoorden."
+    },
+    {
+      "waarom": "De functie mailt de aanvraag via Resend, niet alleen via Cloudflare.",
+      "oud": "worden via Cloudflare naar ons gemaild",
+      "nieuw": "worden via Cloudflare en Resend naar ons gemaild"
+    },
+    {
+      "waarom": "Het formulier gebruikt Cloudflare Turnstile tegen spam.",
+      "oud": "zes maanden na ons laatste bericht verwijderen we ze, tenzij je klant wordt.",
+      "nieuw": "zes maanden na ons laatste bericht verwijderen we ze, tenzij je klant wordt.\n\nTegen spam gebruiken we bij het formulier Cloudflare Turnstile. Turnstile start pas als je het formulier gaat invullen. Het controleert of een mens het formulier verstuurt en niet een computerprogramma. Cloudflare gebruikt daarvoor technische gegevens, zoals je IP-adres en het soort browser. Wat je in het formulier typt, leest Turnstile niet. Deze controle doen we op grond van ons gerechtvaardigd belang (artikel 6 lid 1 onder f AVG): we willen het formulier beschermen tegen misbruik. Cloudflare gebruikt deze gegevens ook om Turnstile zelf beter te maken. Daarvoor is Cloudflare zelf verantwoordelijk."
+    },
+    {
+      "waarom": "Turnstile hoort bij de diensten van Cloudflare in de tabel.",
+      "oud": "Cloudflare (Pages, DNS, Web Analytics)",
+      "nieuw": "Cloudflare (Pages, DNS, Web Analytics, Turnstile)"
+    },
+    {
+      "waarom": "Turnstile hoort bij de diensten van Cloudflare in de tabel.",
+      "oud": "bezoekersstatistiek zonder cookies, formulierverwerking",
+      "nieuw": "bezoekersstatistiek zonder cookies, formulierverwerking, spamcontrole bij het formulier"
+    },
+    {
+      "waarom": "Resend verstuurt ook de berichten van het scanformulier op onze eigen site.",
+      "oud": "het versturen van formulierberichten naar de klant",
+      "nieuw": "het versturen van formulierberichten van onze eigen site en van klantsites"
+    }
+  ]
+}
