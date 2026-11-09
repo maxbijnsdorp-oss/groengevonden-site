@@ -84,7 +84,8 @@ python3 build.py
 - Een stuk tussen `{{#sleutel}}` en `{{/sleutel}}` blijft alleen staan als die sleutel in `config.json` niet leeg is.
   Zo komen het vak van Turnstile (in `src/index.html`) en de adressen van Turnstile in de CSP (in `src/_headers`)
   alleen op de site als `turnstile_sitekey` is ingevuld.
-- De build zegt of Turnstile aan of uit staat. Hij waarschuwt als dat niet past bij de privacyverklaring.
+- De build zegt of Turnstile aan of uit staat. Staat Turnstile aan en noemt de privacyverklaring het niet,
+  dan waarschuwt hij. Met `--streng` stopt hij dan.
 - Staat er daarna nog ergens `{{`, of klopt `config.json` niet, dan stopt de build met exitcode 1 en is er geen `dist/`.
   Cloudflare Pages markeert de build dan als mislukt en zet niets online
   ([bron](https://developers.cloudflare.com/pages/configuration/build-configuration/)).
@@ -249,8 +250,9 @@ Komen er toch veel nepaanvragen binnen? Iemand met een klein script kan honderd 
 Dan is het gratis plan van Resend (100 mails per dag) op en werkt het formulier die dag niet meer.
 Zet dan Turnstile aan. Het formulier vraagt dan eerst een token aan Turnstile. Zonder geldige token stuurt de functie niets (status 403).
 
-1. Zet Turnstile eerst in de privacyverklaring: wat het doet, welke gegevens Cloudflare ziet en waarom.
-   Zie "Privacyverklaring bijwerken". `python3 build.py --streng` stopt zolang Turnstile aan staat en de privacyverklaring het niet noemt.
+1. Kijk eerst naar de privacyverklaring. Die noemt Turnstile al, in een alinea die begint met "Als we dit aanzetten".
+   Pas die zin aan, zodat er staat dat Turnstile aan staat (zie "Privacyverklaring bijwerken").
+   `python3 build.py --streng` stopt als Turnstile aan staat en de privacyverklaring Turnstile niet noemt.
 2. Ga in het Cloudflare-dashboard naar **Turnstile** en kies **Add widget**
    ([bron](https://developers.cloudflare.com/turnstile/get-started/widget-management/dashboard/)).
 3. Vul in: **Widget name** (bijvoorbeeld `Scanformulier`), bij **Hostname management** je domein,
@@ -265,7 +267,8 @@ Turnstile werkt pas als allebei staan: de sitekey in `config.json` en `TURNSTILE
 Staat er maar één, dan werkt het formulier zonder Turnstile en staat er een melding in de logs van de functie.
 Zo valt het formulier niet uit als een van de twee nog ontbreekt.
 
-Uitzetten gaat andersom: maak `turnstile_sitekey` leeg, haal `TURNSTILE_SECRET_KEY` weg en haal Turnstile uit de privacyverklaring.
+Uitzetten gaat andersom: maak `turnstile_sitekey` leeg, haal `TURNSTILE_SECRET_KEY` weg en zet de alinea
+over Turnstile in de privacyverklaring terug naar "Als we dit aanzetten".
 
 Het gratis plan heeft tot 20 widgets, 10 hostnamen per widget en geen limiet op het aantal controles
 (gecontroleerd op 9 november 2026, [bron](https://developers.cloudflare.com/turnstile/plans/)).
@@ -456,12 +459,12 @@ De bron is `10-Privacyverklaring.md` in de map hierboven. Deel 1 daarvan staat o
    Het script heeft pandoc nodig. De build zelf niet.
 3. Draai `python3 build.py` en `python3 tests/check_dist.py`. Die vergelijkt de site met `website/privacy.html` en meldt elk verschil.
 
-`tools/privacy-bron.json` noemt de plekken waar de bron nog niet klopt met dit formulier, zoals de twee vinkjes,
-Resend en Turnstile. Het script past ze toe en meldt elke plek met LET OP. Neem ze over in de bron.
-Daarna kun je ze uit `tools/privacy-bron.json` halen.
+`tools/privacy-bron.json` kan plekken noemen waar de bron nog niet klopt met dit formulier. Het script past ze toe
+en meldt elke plek met LET OP. Neem ze over in de bron. Daarna kun je ze uit `tools/privacy-bron.json` halen.
+Nu staan er geen correcties in.
 
-Turnstile hoort alleen in de privacyverklaring als Turnstile aan staat. `build.py` waarschuwt als dat niet klopt.
-Staat Turnstile aan en noemt de privacyverklaring het niet, dan stopt `build.py --streng` (en dus de build van `main`).
+Staat Turnstile aan, dan moet de privacyverklaring Turnstile noemen. Doet ze dat niet, dan waarschuwt `build.py`
+en stopt `build.py --streng` (en dus de build van `main`).
 
 ## Nog te doen
 
@@ -470,10 +473,6 @@ Staat Turnstile aan en noemt de privacyverklaring het niet, dan stopt `build.py 
 - Als het domein gekoppeld is: de regel voor rate limiting op `/api/scan` maken (zie "Extra rem").
 - Turnstile pas als er spam binnenkomt (zie "Turnstile aanzetten (als er spam binnenkomt)").
 - Er is nog geen afbeelding voor als iemand de link deelt (`og:image`).
-- De correcties in `tools/privacy-bron.json` overnemen in `10-Privacyverklaring.md` en daarna `website/privacy.html` opnieuw maken:
-  de twee vinkjes, de gemeente en Resend. `tools/sync_privacy.py` meldt ze met LET OP zolang dat nog niet is gebeurd.
-  Turnstile staat uit. Haal daarom de drie correcties over Turnstile uit `tools/privacy-bron.json` en zet Turnstile niet in de bron.
-  Tot dan noemt de privacyverklaring op de site Turnstile nog, en waarschuwt `build.py` daarvoor.
 - Schema.org noemt het type `ProfessionalService` verouderd voor lokale bedrijven
   ([bron](https://schema.org/ProfessionalService)). Wil je dat netjes, zet dan in `src/index.html` `"@type": "LocalBusiness"`
   en pas `tests/check_dist.py` mee aan.

@@ -251,7 +251,8 @@ def build(strict):
     if strict and open_fields:
         errors.append("Nog niet ingevuld in config.json: " + ", ".join(open_fields) + ".")
 
-    # Turnstile en de privacyverklaring moeten bij elkaar passen.
+    # Staat Turnstile aan, dan moet de privacyverklaring het noemen. Andersom mag wel: de privacyverklaring
+    # mag Turnstile noemen als iets dat we kunnen aanzetten.
     turnstile = bool(cfg["turnstile_sitekey"].strip())
     privacy = DIST / "privacy.html"
     privacy_mentions = privacy.is_file() and "Turnstile" in privacy.read_text(encoding="utf-8")
@@ -260,9 +261,6 @@ def build(strict):
         problem = ("Turnstile staat aan (turnstile_sitekey is ingevuld), maar de privacyverklaring noemt "
                    "Turnstile niet. Zet dat er eerst in (zie README, Turnstile aanzetten).")
         (errors if strict else notes).append(problem)
-    if not turnstile and privacy_mentions:
-        notes.append("De privacyverklaring noemt Turnstile, maar Turnstile staat uit. "
-                     "Haal die tekst weg of zet Turnstile aan (zie README, Turnstile aanzetten).")
     if errors:
         fail(errors)
 
