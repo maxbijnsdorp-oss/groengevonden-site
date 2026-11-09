@@ -28,7 +28,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SETTINGS = ROOT / "tools" / "privacy-bron.json"
 OUT = ROOT / "src" / "privacy.html"
-PANDOC_FORMAT = "markdown+lists_without_preceding_blankline+hard_line_breaks"
+# Zonder smart (-smart): rechte aanhalingstekens en geen kastlijnen, net als website/privacy.html.
+PANDOC_FORMAT = "markdown-smart+lists_without_preceding_blankline+hard_line_breaks"
 
 
 def stop(message):
