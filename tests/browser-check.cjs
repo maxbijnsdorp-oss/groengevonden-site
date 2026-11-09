@@ -1,27 +1,45 @@
 // Browsercontrole met Playwright tegen een draaiende server (bijvoorbeeld wrangler pages dev).
 //
 // Gebruik:
-//   node tests/browser-check.cjs <adres> <verwachte status bij versturen> [map voor screenshots]
-//   node tests/browser-check.cjs http://127.0.0.1:8788 500
+//   node tests/browser-check.cjs <adres> <stand> [map voor screenshots]
+//   node tests/browser-check.cjs http://127.0.0.1:8788 zonder-instellingen
 //
-// De verwachte status is 500 als de server geen instellingen heeft, 502 met een nepsleutel.
-// Controleert: geen consolefouten, geen CSP-schendingen, geen JavaScript-fouten, de kopieerknop,
-// de controle in de browser, de spamcontrole (Turnstile met de testsleutel uit config.json),
-// de foutmelding na versturen (zonder crash), een geslaagde verzending (nagebootst, er gaat geen
-// mail weg), hetzelfde aanvraag_id bij een tweede poging, het formulier zonder JavaScript en
-// de breedte op een telefoon.
-// Nodig: npm install en npx playwright install chromium in tests/ (zie README).
+// <stand> zegt welke instellingen de server heeft, net als bij tests/api-tests.sh:
+//   zonder-instellingen     geen omgevingsvariabelen: versturen geeft 500 (kortweg: 500)
+//   nep-sleutel             RESEND_API_KEY=nep, FROM_EMAIL en TO_EMAIL: versturen geeft 502 (kortweg: 502)
+//   nep-sleutel-turnstile   zoals nep-sleutel, plus TURNSTILE_SECRET_KEY met de testsleutel: ook 502
+// Controleert: geen consolefouten, geen CSP-schendingen, geen JavaScript-fouten, de lettertypen van de
+// eigen site (geen Google Fonts, geen verzoeken naar andere sites), de kopieerknop, de controle in de
+// browser, de spamcontrole (Turnstile met de testsleutel, als turnstile_sitekey in config.json is ingevuld;
+// anders juist geen Turnstile), de foutmelding na versturen (zonder crash), een geslaagde verzending
+// (nagebootst, er gaat geen mail weg), hetzelfde aanvraag_id bij een tweede poging, het formulier zonder
+// JavaScript en de breedte op een telefoon.
+// Het script gaat ervan uit dat de server dist/ uit deze map gebruikt, gebouwd met deze config.json.
+// Nodig: npm ci en npx playwright install chromium in tests/ (zie README).
 const { chromium } = require('playwright');
 const path = require('path');
 const config = require(path.join(__dirname, '..', 'config.json'));
 
+// Per stand: de status bij versturen, en of de server TURNSTILE_SECRET_KEY heeft.
+const STANDEN = {
+  'zonder-instellingen': [500, false], 'nep-sleutel': [502, false], 'nep-sleutel-turnstile': [502, true],
+  500: [500, false], 502: [502, false],
+};
 const base = process.argv[2];
-const expectedStatus = Number(process.argv[3]);
+const stand = STANDEN[process.argv[3]];
 const shotDir = process.argv[4];
-if (!base || ![500, 502].includes(expectedStatus)) {
-  console.error('Gebruik: node tests/browser-check.cjs <adres> <500|502> [map voor screenshots]');
+if (!base || !stand) {
+  console.error('Gebruik: node tests/browser-check.cjs <adres> <zonder-instellingen|nep-sleutel|nep-sleutel-turnstile> [map voor screenshots]');
   process.exit(2);
 }
+const [expectedStatus, serverSecret] = stand;
+// Turnstile staat op de pagina als turnstile_sitekey in config.json is ingevuld. De functie controleert
+// de token alleen als de server ook TURNSTILE_SECRET_KEY heeft.
+const turnstileOn = String(config.turnstile_sitekey || '').trim() !== '';
+const tokenChecked = turnstileOn && serverSecret;
+const TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com/';
+const FONTS = [['Young Serif', '400'], ['Atkinson Hyperlegible', '400'], ['Atkinson Hyperlegible', '700'],
+  ['IBM Plex Mono', '400'], ['IBM Plex Mono', '500']];
 
 const results = [];
 const check = (name, ok, detail = '') => results.push({ name, ok: Boolean(ok), detail });
@@ -30,6 +48,32 @@ function watch(page, log) {
   page.on('console', (m) => { if (m.type() === 'error') log.console.push(m.text()); });
   page.on('pageerror', (e) => log.page.push(String(e)));
   page.on('requestfailed', (r) => log.failed.push(`${r.url()} (${r.failure() && r.failure().errorText})`));
+  page.on('request', (r) => log.requests.push(r.url()));
+}
+
+// Verzoeken naar een andere site dan de server die we testen. Cloudflare Web Analytics telt niet mee:
+// dat zet Cloudflare er online zelf in als het aan staat, en de CSP en de privacyverklaring noemen het.
+const ANALYTICS = ['https://static.cloudflareinsights.com/', 'https://cloudflareinsights.com/'];
+const elsewhere = (urls) => urls.filter((u) => !u.startsWith(`${base}/`) && !/^(data|blob|about):/.test(u)
+  && !ANALYTICS.some((a) => u.startsWith(a)));
+
+// Laadt de vijf lettertypen en geeft per lettertype de status en het adres waar het vandaan kwam.
+async function fontReport(page) {
+  return page.evaluate(async (fonts) => {
+    // Een lettertype dat niet laadt, geeft hieronder de status "error". Daarom allSettled.
+    await Promise.allSettled(fonts.map(([family, weight]) => document.fonts.load(`${weight} 16px "${family}"`)));
+    await document.fonts.ready;
+    const weightOf = (w) => ({ normal: '400', bold: '700' }[w] || String(w));
+    const faces = [...document.fonts];
+    const files = performance.getEntriesByType('resource').map((e) => e.name).filter((u) => /\.woff2(\?|$)/.test(u));
+    return {
+      status: fonts.map(([family, weight]) => {
+        const face = faces.find((f) => f.family.replace(/["']/g, '') === family && weightOf(f.weight) === weight);
+        return `${family} ${weight}: ${face ? face.status : 'ontbreekt'}`;
+      }),
+      files,
+    };
+  }, FONTS);
 }
 
 async function cspViolations(page) {
@@ -50,19 +94,23 @@ async function cspViolations(page) {
 
   // 1. Homepage laden
   const page = await context.newPage();
-  const log = { console: [], page: [], failed: [] };
+  const log = { console: [], page: [], failed: [], requests: [] };
   watch(page, log);
   const resp = await page.goto(`${base}/`, { waitUntil: 'networkidle' });
   check('homepage geeft 200', resp.status() === 200, resp.status());
   const csp = resp.headers()['content-security-policy'] || '';
   check('homepage heeft een CSP-header', csp.includes("default-src 'self'"), csp);
+  check(`CSP ${turnstileOn ? 'staat' : 'noemt'} challenges.cloudflare.com ${turnstileOn ? 'toe (Turnstile staat aan)' : 'niet (Turnstile staat uit)'}`,
+    csp.includes('challenges.cloudflare.com') === turnstileOn, csp);
   check('titel komt uit config.json', (await page.title()).startsWith(config.bedrijfsnaam), await page.title());
 
-  const fonts = await page.evaluate(async () => {
-    await document.fonts.ready;
-    return ['Young Serif', 'Atkinson Hyperlegible', 'IBM Plex Mono'].map((f) => `${f}: ${document.fonts.check(`16px "${f}"`)}`);
-  });
-  check('Google Fonts geladen (CSP staat ze toe)', fonts.every((f) => f.endsWith('true')), fonts.join(', '));
+  // Lettertypen: alle vijf geladen, en alleen van de eigen site.
+  const fonts = await fontReport(page);
+  check('lettertypen geladen (alle vijf)', fonts.status.every((f) => f.endsWith(': loaded')), fonts.status.join(', '));
+  check('lettertypen komen van de eigen site (/fonts/)', fonts.files.length > 0 && fonts.files.every((u) => u.startsWith(`${base}/fonts/`)),
+    fonts.files.join(', ') || 'geen woff2 geladen');
+  const loadRequests = elsewhere(log.requests);
+  check('homepage laadt niets van andere sites (geen Google Fonts)', loadRequests.length === 0, loadRequests.join(', '));
 
   // Consolefouten tijdens het laden (voordat we iets versturen).
   const loadErrors = [...log.console];
@@ -94,19 +142,34 @@ async function cspViolations(page) {
     await p.check('#f-consent');
   };
   // Turnstile laadt zodra je in het formulier klikt of typt. Met de testsleutel komt er snel een token.
-  const tokenReady = (p) => p.waitForFunction(() => {
+  // Staat Turnstile uit, dan is er geen token en hoeft er ook niet op gewacht te worden.
+  const tokenReady = (p) => (!turnstileOn ? Promise.resolve(true) : p.waitForFunction(() => {
     const t = document.querySelector('#scan-form [name="cf-turnstile-response"]');
     return Boolean(t && t.value);
-  }, null, { timeout: 30000 }).then(() => true, () => false);
+  }, null, { timeout: 30000 }).then(() => true, () => false));
   await fillForm(page);
-  check('spamcontrole (Turnstile) geeft een token', await tokenReady(page));
+  if (turnstileOn) {
+    check('spamcontrole (Turnstile) geeft een token', await tokenReady(page));
+  } else {
+    await page.waitForTimeout(1000);
+    const ts = await page.evaluate(() => ({
+      box: Boolean(document.getElementById('f-turnstile')),
+      script: Boolean(document.querySelector('script[src*="challenges.cloudflare.com"]')),
+      iframe: Boolean(document.querySelector('iframe')),
+    }));
+    check('Turnstile staat uit: geen vak, geen script en geen iframe na het invullen', !ts.box && !ts.script && !ts.iframe, JSON.stringify(ts));
+  }
   const [apiResp] = await Promise.all([
     page.waitForResponse((r) => r.url().endsWith('/api/scan') && r.request().method() === 'POST', { timeout: 30000 }),
     page.click('#f-submit'),
   ]);
   const sent = JSON.parse(apiResp.request().postData() || '{}');
   check('verzoek bevat alle velden en de lege honeypot', sent.toestemming === 'on' && sent.bedrijfswebsite_extra === '' && sent.gemeente === 'Huizen', JSON.stringify(sent));
-  check('verzoek bevat de token en een aanvraag_id', Boolean(sent['cf-turnstile-response']) && /^[A-Za-z0-9-]{8,64}$/.test(sent.aanvraag_id || ''), JSON.stringify(sent));
+  if (turnstileOn) {
+    check('verzoek bevat de token en een aanvraag_id', Boolean(sent['cf-turnstile-response']) && /^[A-Za-z0-9-]{8,64}$/.test(sent.aanvraag_id || ''), JSON.stringify(sent));
+  } else {
+    check('verzoek zonder token (Turnstile staat uit), met een aanvraag_id', !('cf-turnstile-response' in sent) && /^[A-Za-z0-9-]{8,64}$/.test(sent.aanvraag_id || ''), JSON.stringify(sent));
+  }
   check(`server antwoordt ${expectedStatus}`, apiResp.status() === expectedStatus, apiResp.status());
   await page.waitForFunction(() => !document.getElementById('f-submit').disabled, null, { timeout: 15000 });
   const errMsg = await page.textContent('#form-msg');
@@ -149,6 +212,9 @@ async function cspViolations(page) {
   const homeCsp = await cspViolations(page);
   check('homepage: geen CSP-schendingen', homeCsp.length === 0, homeCsp.join(' | '));
   check('homepage: geen mislukte verzoeken', log.failed.length === 0, log.failed.join(' | '));
+  const others = elsewhere(log.requests).filter((u) => !(turnstileOn && u.startsWith(TURNSTILE_ORIGIN)));
+  check(turnstileOn ? 'homepage: alleen Turnstile (challenges.cloudflare.com) laadt iets van een andere site'
+    : 'homepage: geen enkel verzoek naar een andere site (Turnstile staat uit)', others.length === 0, others.join(' | '));
 
   if (shotDir) {
     await page.evaluate(() => window.scrollTo(0, 0));
@@ -158,7 +224,7 @@ async function cspViolations(page) {
   // 6. Privacyverklaring en 404-pagina
   for (const [url, label, status] of [['/privacy', 'privacy', 200], ['/bestaat-niet', '404', 404]]) {
     const p = await context.newPage();
-    const l = { console: [], page: [], failed: [] };
+    const l = { console: [], page: [], failed: [], requests: [] };
     watch(p, l);
     const r = await p.goto(`${base}${url}`, { waitUntil: 'networkidle' });
     // De 404-status zelf geeft in Chrome een consolemelding "Failed to load resource: 404". Die is verwacht.
@@ -166,27 +232,37 @@ async function cspViolations(page) {
     const v = await cspViolations(p);
     check(`${label}: status ${status}, geen fouten, geen CSP-schendingen`, r.status() === status && consoleErrors.length === 0 && l.page.length === 0 && v.length === 0 && l.failed.length === 0,
       `status ${r.status()}; console: ${consoleErrors.join(' | ')}; js: ${l.page.join(' | ')}; csp: ${v.join(' | ')}; mislukt: ${l.failed.join(' | ')}`);
+    const f = await fontReport(p);
+    const away = elsewhere(l.requests);
+    check(`${label}: lettertypen geladen van de eigen site, niets van andere sites`,
+      f.status.every((s) => s.endsWith(': loaded')) && f.files.length > 0 && f.files.every((u) => u.startsWith(`${base}/fonts/`)) && away.length === 0,
+      `${f.status.join(', ')}; bestanden: ${f.files.join(', ')}; andere sites: ${away.join(', ')}`);
     if (shotDir) await p.screenshot({ path: path.join(shotDir, `${label}-desktop.png`), fullPage: label === 'privacy' });
     await p.close();
   }
 
-  // 7a. Turnstile geblokkeerd (bijvoorbeeld door een adblocker): de melding noemt het telefoonnummer
-  const blocked = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  await blocked.route('https://challenges.cloudflare.com/**', (route) => route.abort());
-  const b = await blocked.newPage();
-  const bErrors = [];
-  b.on('pageerror', (e) => bErrors.push(String(e)));
-  await b.goto(`${base}/`, { waitUntil: 'networkidle' });
-  await fillForm(b);
-  await b.waitForTimeout(1000);
-  await b.click('#f-submit');
-  const blockedMsg = await b.textContent('#form-msg');
-  check('Turnstile geblokkeerd: melding met telefoonnummer, geen JavaScript-fout',
-    blockedMsg.includes('De controle tegen spam lukt nu niet.') && blockedMsg.includes(config.telefoon) && bErrors.length === 0,
-    `"${blockedMsg}" ${bErrors.join(' | ')}`);
-  await blocked.close();
+  // 7a. Turnstile geblokkeerd (bijvoorbeeld door een adblocker): de melding noemt het telefoonnummer.
+  // Alleen als Turnstile aan staat.
+  if (turnstileOn) {
+    const blocked = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await blocked.route(`${TURNSTILE_ORIGIN}**`, (route) => route.abort());
+    const b = await blocked.newPage();
+    const bErrors = [];
+    b.on('pageerror', (e) => bErrors.push(String(e)));
+    await b.goto(`${base}/`, { waitUntil: 'networkidle' });
+    await fillForm(b);
+    await b.waitForTimeout(1000);
+    await b.click('#f-submit');
+    const blockedMsg = await b.textContent('#form-msg');
+    check('Turnstile geblokkeerd: melding met telefoonnummer, geen JavaScript-fout',
+      blockedMsg.includes('De controle tegen spam lukt nu niet.') && blockedMsg.includes(config.telefoon) && bErrors.length === 0,
+      `"${blockedMsg}" ${bErrors.join(' | ')}`);
+    await blocked.close();
+  }
 
-  // 7b. Zonder JavaScript: de browser controleert de verplichte velden, de server antwoordt met een pagina
+  // 7b. Zonder JavaScript: de browser controleert de verplichte velden, de server antwoordt met een pagina.
+  // Controleert de functie de token, dan is er zonder JavaScript geen token (403). Anders komt de aanvraag
+  // gewoon bij de server.
   const nojs = await browser.newContext({ viewport: { width: 1280, height: 900 }, javaScriptEnabled: false });
   const n = await nojs.newPage();
   await n.goto(`${base}/`, { waitUntil: 'load' });
@@ -195,17 +271,23 @@ async function cspViolations(page) {
   await n.click('#f-submit');
   await n.waitForTimeout(800);
   check('zonder JavaScript: de browser houdt een leeg formulier tegen', posted === 0 && n.url() === `${base}/`, `${posted} verzoek(en), adres ${n.url()}`);
+  const noscriptText = await n.evaluate(() => [...document.querySelectorAll('noscript')].map((e) => e.textContent).join(' '));
+  check(turnstileOn ? 'zonder JavaScript: de pagina zegt dat het formulier JavaScript nodig heeft'
+    : 'zonder JavaScript: geen melding dat het formulier JavaScript nodig heeft (Turnstile staat uit)',
+  noscriptText.includes('Dit formulier werkt alleen met JavaScript') === turnstileOn, noscriptText);
   await fillForm(n);
   const [noJsResp] = await Promise.all([n.waitForNavigation({ timeout: 15000 }), n.click('#f-submit')]);
   const noJsText = await n.textContent('body');
-  check('zonder JavaScript: zonder spamcontrole 403, met telefoonnummer en de terugknop',
-    noJsResp && noJsResp.status() === 403 && noJsText.includes(config.telefoon) && noJsText.includes('terugknop'),
-    `${noJsResp && noJsResp.status()}: ${noJsText.trim().slice(0, 200)}`);
+  const noJsStatus = tokenChecked ? 403 : expectedStatus;
+  check(tokenChecked ? 'zonder JavaScript: zonder spamcontrole 403, met telefoonnummer en de terugknop'
+    : `zonder JavaScript: de aanvraag komt bij de server (${expectedStatus}), met telefoonnummer en de terugknop`,
+  noJsResp && noJsResp.status() === noJsStatus && noJsText.includes(config.telefoon) && noJsText.includes('terugknop'),
+  `${noJsResp && noJsResp.status()}: ${noJsText.trim().slice(0, 200)}`);
   await n.goBack();
   check('zonder JavaScript: na de terugknop staat je naam er nog', (await n.inputValue('#f-naam')) === 'Test Persoon', await n.inputValue('#f-naam'));
   await nojs.close();
 
-  // 8. Telefoonbreedte: geen horizontaal scrollen, ook niet als de spamcontrole er staat
+  // 8. Telefoonbreedte: geen horizontaal scrollen, ook niet als de spamcontrole er staat (als die aan staat)
   const mobile = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
   for (const url of ['/', '/privacy', '/bestaat-niet']) {
     const m = await mobile.newPage();
@@ -224,7 +306,7 @@ async function cspViolations(page) {
     const loaded = await tokenReady(m);
     await m.waitForTimeout(500);
     const overflow = await m.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    check(`telefoon (${width}px) /: spamcontrole geladen, geen horizontaal scrollen`, loaded && overflow <= 0, `token ${loaded}, ${overflow}px te breed`);
+    check(`telefoon (${width}px) /: ${turnstileOn ? 'spamcontrole geladen, ' : ''}geen horizontaal scrollen`, loaded && overflow <= 0, `token ${loaded}, ${overflow}px te breed`);
     if (shotDir) await m.locator('#scan-form').screenshot({ path: path.join(shotDir, `formulier-${width}px.png`) });
     await ctx.close();
   }

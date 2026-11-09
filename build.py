@@ -3,8 +3,9 @@
 
 Gebruik:
     python3 build.py            bouwen; waarschuwt als er nog [invulvelden] in config.json staan
-    python3 build.py --streng   bouwen en stoppen met een fout als er nog [invulvelden] staan
-                                of als turnstile_sitekey nog de testsleutel is
+    python3 build.py --streng   bouwen en stoppen met een fout als er nog [invulvelden] staan,
+                                als turnstile_sitekey nog de testsleutel is, of als Turnstile aan staat
+                                en de privacyverklaring Turnstile niet noemt
 Op Cloudflare Pages staat de strenge controle vanzelf aan voor de productiebranch (PRODUCTIE_BRANCH,
 Pages zet CF_PAGES_BRANCH). Builds van andere branches (previews) mogen nog invulvelden hebben.
 
@@ -12,6 +13,10 @@ Regels:
 - {{sleutel}} wordt vervangen door de waarde uit config.json, in .html, .xml, .svg, .txt,
   _headers en _redirects. In HTML en XML wordt de waarde veilig gemaakt (& < > " ').
   In <script type="application/ld+json"> wordt hij als JSON-tekst ingevuld.
+- {{#sleutel}} ... {{/sleutel}}: dat stuk blijft alleen staan als de sleutel in config.json niet leeg is.
+  Staan de twee markeringen elk op een eigen regel, dan verdwijnen die regels helemaal.
+  Zo komt de spamcontrole (Turnstile) alleen op de site als turnstile_sitekey is ingevuld.
+- turnstile_sitekey mag leeg zijn: dan staat Turnstile uit. De andere velden mogen niet leeg zijn.
 - <span class="ph">...</span> is de streepjeslijn voor een invulveld. Staat er na het invullen
   geen [tekst tussen haken] meer in, dan haalt de build de streepjeslijn weg.
   Een e-mailadres wordt dan een klikbare mailto-link.
@@ -38,8 +43,10 @@ PRODUCTIE_BRANCH = "main"
 
 REQUIRED_KEYS = [
     "bedrijfsnaam", "domein", "email", "telefoon", "telefoon_e164",
-    "eigenaar", "kvk", "btw_id", "plaats", "turnstile_sitekey",
+    "eigenaar", "kvk", "btw_id", "plaats",
 ]
+# Mogen leeg zijn of ontbreken (dan geldt de waarde hier). Leeg turnstile_sitekey: Turnstile staat uit.
+OPTIONAL_KEYS = {"turnstile_sitekey": ""}
 HTML_SUFFIXES = {".html"}
 XML_SUFFIXES = {".xml", ".svg"}
 RAW_SUFFIXES = {".txt"}
@@ -48,6 +55,10 @@ RAW_NAMES = {"_headers", "_redirects"}
 TEXT_SUFFIXES = HTML_SUFFIXES | XML_SUFFIXES | RAW_SUFFIXES | {".js", ".css", ".json", ".webmanifest", ".md"}
 
 PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}")
+# {{#sleutel}} ... {{/sleutel}}, eerst met de markeringen op eigen regels, daarna midden in een regel.
+SECTION_LINES = re.compile(
+    r"^[ \t]*\{\{#([A-Za-z_][A-Za-z0-9_]*)\}\}[ \t]*\n(.*?)^[ \t]*\{\{/\1\}\}[ \t]*(?:\n|\Z)", re.S | re.M)
+SECTION = re.compile(r"\{\{#([A-Za-z_][A-Za-z0-9_]*)\}\}(.*?)\{\{/\1\}\}", re.S)
 JSON_LD = re.compile(r'(<script type="application/ld\+json">)(.*?)(</script>)', re.S)
 PH_SPAN = re.compile(r'<span class="ph">([^<]*)</span>')
 BRACKETS = re.compile(r"\[[^\]]+\]")
@@ -80,10 +91,12 @@ def load_config():
     for key in REQUIRED_KEYS:
         if key not in cfg:
             errors.append(f'config.json mist "{key}".')
+    for key, default in OPTIONAL_KEYS.items():
+        cfg.setdefault(key, default)
     for key, value in cfg.items():
         if not isinstance(value, str):
             errors.append(f'"{key}" in config.json moet tekst tussen aanhalingstekens zijn.')
-        elif not value.strip():
+        elif not value.strip() and key not in OPTIONAL_KEYS:
             errors.append(f'"{key}" in config.json is leeg.')
         elif re.search(r"[\x00-\x1f\x7f]", value):
             errors.append(f'"{key}" in config.json bevat een enter of tab. Zet alles op één regel.')
@@ -106,10 +119,10 @@ def load_config():
             '"bedrijfsnaam" mag alleen letters, cijfers, spaties en de tekens & \' . - bevatten, '
             f'en moet beginnen met een letter of cijfer. Nu staat er: {cfg["bedrijfsnaam"]}'
         )
-    if not SITEKEY.match(cfg["turnstile_sitekey"]):
+    if cfg["turnstile_sitekey"] and not SITEKEY.match(cfg["turnstile_sitekey"]):
         errors.append(
-            '"turnstile_sitekey" moet de sitekey van je Turnstile-widget zijn (letters, cijfers, - en _). '
-            f'Nu staat er: {cfg["turnstile_sitekey"]}'
+            '"turnstile_sitekey" moet leeg zijn (Turnstile uit) of de sitekey van je Turnstile-widget '
+            f'(letters, cijfers, - en _). Nu staat er: {cfg["turnstile_sitekey"]}'
         )
     return cfg, errors
 
@@ -126,6 +139,17 @@ def escape_json(value):
 
 def raw(value):
     return value
+
+
+def sections(text, cfg, unknown):
+    """Laat {{#sleutel}} ... {{/sleutel}} staan als de sleutel niet leeg is, anders gaat het stuk weg."""
+    def repl(match):
+        key = match.group(1)
+        if key not in cfg:
+            unknown.add(key)
+            return match.group(0)  # blijft staan; de controle op {{ meldt het met regelnummer
+        return match.group(2) if cfg[key].strip() else ""
+    return SECTION.sub(repl, SECTION_LINES.sub(repl, text))
 
 
 def substitute(text, cfg, escape, unknown):
@@ -197,17 +221,18 @@ def build(strict):
             continue
         rel = path.relative_to(DIST).as_posix()
         text = path.read_text(encoding="utf-8")
+        new = sections(text, cfg, unknown)
         if kind == "html":
-            new = render_html(text, cfg, unknown)
+            new = render_html(new, cfg, unknown)
             for block in JSON_LD.finditer(new):
                 try:
                     json.loads(block.group(2))
                 except json.JSONDecodeError as exc:
                     errors.append(f"{rel}: het JSON-LD-blok is na het invullen geen geldige JSON: {exc}")
         elif kind == "xml":
-            new = substitute(text, cfg, escape_html, unknown)
+            new = substitute(new, cfg, escape_html, unknown)
         else:
-            new = substitute(text, cfg, raw, unknown)
+            new = substitute(new, cfg, raw, unknown)
         if new != text:
             path.write_text(new, encoding="utf-8")
             filled.append(rel)
@@ -225,15 +250,31 @@ def build(strict):
         open_fields.append("turnstile_sitekey (nog de testsleutel)")
     if strict and open_fields:
         errors.append("Nog niet ingevuld in config.json: " + ", ".join(open_fields) + ".")
+
+    # Turnstile en de privacyverklaring moeten bij elkaar passen.
+    turnstile = bool(cfg["turnstile_sitekey"].strip())
+    privacy = DIST / "privacy.html"
+    privacy_mentions = privacy.is_file() and "Turnstile" in privacy.read_text(encoding="utf-8")
+    notes = []
+    if turnstile and not privacy_mentions:
+        problem = ("Turnstile staat aan (turnstile_sitekey is ingevuld), maar de privacyverklaring noemt "
+                   "Turnstile niet. Zet dat er eerst in (zie README, Turnstile aanzetten).")
+        (errors if strict else notes).append(problem)
+    if not turnstile and privacy_mentions:
+        notes.append("De privacyverklaring noemt Turnstile, maar Turnstile staat uit. "
+                     "Haal die tekst weg of zet Turnstile aan (zie README, Turnstile aanzetten).")
     if errors:
         fail(errors)
 
     files = sorted(p.relative_to(DIST).as_posix() for p in DIST.rglob("*") if p.is_file())
     print(f"Klaar: {len(files)} bestanden in dist/ voor {cfg['bedrijfsnaam']} ({cfg['domein']}).")
     print("Ingevuld uit config.json: " + ", ".join(filled) + ".")
+    print("Spamcontrole (Turnstile): " + ("aan." if turnstile else "uit, want turnstile_sitekey is leeg."))
     if open_fields:
         print("Let op: deze velden in config.json zijn nog niet ingevuld: " + ", ".join(open_fields) + ".")
         print("De site toont daar nu de tekst tussen [ ]. Vul ze in voordat je de site echt gebruikt.")
+    for note in notes:
+        print(f"Let op: {note}")
 
 
 def main():

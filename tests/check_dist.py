@@ -14,7 +14,11 @@ Controleert:
 - de teksten bij vinkje 1 en vinkje 2 zijn gelijk aan CONSENT_TEXT en VERVOLG_TEXT in de functie
 - de maxlength van de velden is gelijk aan de limieten in de functie
 - de gemeenten in de functie zijn gelijk aan de keuzelijst, de e-mailcontrole in main.js aan die in de functie
-- het formulier heeft het Turnstile-vak met de sitekey uit config.json, en geen novalidate
+- Turnstile: met een sitekey in config.json het Turnstile-vak met die sitekey en challenges.cloudflare.com in de CSP,
+  met een lege sitekey geen vak, geen melding voor bezoekers zonder JavaScript en niets van Turnstile in de CSP;
+  het formulier heeft geen novalidate; de functie heeft TURNSTILE_SECRET_KEY niet nodig
+- lettertypen van de eigen site: fonts.css met de vijf lettertypen (font-display: swap), echte woff2-bestanden,
+  de licenties, elke pagina laadt fonts.css, nergens Google Fonts, en de CSP staat alleen font-src 'self' toe
 - de privacyverklaring noemt beide vinkjes met de tekst van nu, en niet meer het oude vinkje
 - de privacyverklaring is gelijk aan ../website/privacy.html, op de correcties in tools/privacy-bron.json na
   (alleen als dat bestand er is)
@@ -39,6 +43,12 @@ VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "met
 TEXT_SUFFIXES = {".html", ".xml", ".svg", ".txt", ".js", ".css", ".json", ".md"}
 TEXT_NAMES = {"_headers", "_redirects"}
 GEMEENTEN = 13
+# De lettertypen in src/fonts/fonts.css: (familie, gewicht).
+FONTS = {("Young Serif", "400"), ("Atkinson Hyperlegible", "400"), ("Atkinson Hyperlegible", "700"),
+         ("IBM Plex Mono", "400"), ("IBM Plex Mono", "500")}
+FONT_LICENSES = ["OFL-young-serif.txt", "OFL-atkinson-hyperlegible.txt", "OFL-ibm-plex-mono.txt"]
+GOOGLE_FONTS = ("fonts.googleapis.com", "fonts.gstatic.com")
+REQUIRED_ENV = ["RESEND_API_KEY", "FROM_EMAIL", "TO_EMAIL"]
 
 results = []
 
@@ -358,39 +368,110 @@ def main():
           bool(fn_email and js_email) and fn_email.group(1) == js_email.group(1),
           f"\n    main.js: {js_email and js_email.group(1)}\n    functie: {fn_email and fn_email.group(1)}")
 
-    widget = next((a for t, a in index.elements if a.get("id") == "f-turnstile"), {})
+    # Turnstile staat aan als turnstile_sitekey in config.json is ingevuld. Leeg of afwezig: uit.
+    sitekey = cfg.get("turnstile_sitekey", "").strip()
+    turnstile = "aan" if sitekey else "uit"
+    widget = next((a for t, a in index.elements if a.get("id") == "f-turnstile"), None)
+    noscript = any(t == "noscript" for t, a in index.elements)
     problems = []
-    if widget.get("data-sitekey") != cfg["turnstile_sitekey"]:
-        problems.append(f"#f-turnstile heeft data-sitekey {widget.get('data-sitekey')!r}, niet de sitekey uit config.json")
+    if sitekey:
+        if widget is None:
+            problems.append("het vak #f-turnstile ontbreekt, terwijl turnstile_sitekey is ingevuld")
+        elif widget.get("data-sitekey") != sitekey:
+            problems.append(f"#f-turnstile heeft data-sitekey {widget.get('data-sitekey')!r}, niet de sitekey uit config.json")
+        if not noscript:
+            problems.append("de melding voor bezoekers zonder JavaScript (<noscript>) ontbreekt")
+    else:
+        if widget is not None:
+            problems.append("het vak #f-turnstile staat er, terwijl turnstile_sitekey leeg is")
+        if noscript:
+            problems.append("de melding dat het formulier alleen met JavaScript werkt staat er, maar zonder Turnstile werkt het ook zonder")
+        if "challenges.cloudflare.com" in index_html:
+            problems.append("index.html noemt challenges.cloudflare.com, terwijl Turnstile uit staat")
     if "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" not in main_js:
         problems.append("main.js laadt api.js van Turnstile niet van het vaste adres")
     if "novalidate" in form:
         problems.append("het formulier heeft novalidate (dan controleert de browser zonder JavaScript niets)")
-    check("formulier: spamcontrole (Turnstile) en controle door de browser", not problems, "; ".join(problems))
+    check(f"formulier: spamcontrole (Turnstile staat {turnstile}) en controle door de browser", not problems,
+          "; ".join(problems))
+
+    env_match = re.search(r"const REQUIRED_ENV = \[([^\]]*)\]", function_src)
+    fn_env = re.findall(r'"([A-Z_]+)"', env_match.group(1)) if env_match else []
+    check("functie: verplicht zijn alleen RESEND_API_KEY, FROM_EMAIL en TO_EMAIL (Turnstile is niet verplicht)",
+          fn_env == REQUIRED_ENV, f"REQUIRED_ENV in de functie: {fn_env or 'niet gevonden'}")
 
     # 5. Headers
     headers = (DIST / "_headers").read_text(encoding="utf-8")
     csp = re.search(r"Content-Security-Policy:\s*(.+)", headers)
     csp_value = csp.group(1) if csp else ""
-    script_src = re.search(r"script-src ([^;]+)", csp_value)
+    directives = {part.split()[0]: " ".join(part.split()[1:]) for part in csp_value.split(";") if part.split()}
+    script_src = directives.get("script-src", "")
     problems = []
     if not csp:
         problems.append("geen CSP")
-    elif not script_src or "'unsafe-inline'" in script_src.group(1):
+    elif not script_src or "'unsafe-inline'" in script_src:
         problems.append("script-src ontbreekt of staat 'unsafe-inline' toe")
-    if "https://challenges.cloudflare.com" not in (script_src.group(1) if script_src else ""):
-        problems.append("script-src staat Turnstile (https://challenges.cloudflare.com) niet toe")
-    for needed in ["frame-ancestors 'none'", "https://fonts.googleapis.com", "https://fonts.gstatic.com",
-                   "https://static.cloudflareinsights.com", "https://cloudflareinsights.com",
-                   "frame-src https://challenges.cloudflare.com",
+    if sitekey:
+        if "https://challenges.cloudflare.com" not in script_src.split():
+            problems.append("script-src staat Turnstile (https://challenges.cloudflare.com) niet toe")
+        if directives.get("frame-src") != "https://challenges.cloudflare.com":
+            problems.append("frame-src staat alleen het iframe van Turnstile toe: dat klopt niet")
+    elif "challenges.cloudflare.com" in csp_value:
+        problems.append("de CSP staat challenges.cloudflare.com toe, terwijl Turnstile uit staat")
+    if directives.get("font-src") != "'self'":
+        problems.append(f"font-src is {directives.get('font-src')!r}, niet 'self'")
+    if directives.get("style-src") != "'self' 'unsafe-inline'":
+        problems.append(f"style-src is {directives.get('style-src')!r}, niet 'self' 'unsafe-inline'")
+    for needed in ["frame-ancestors 'none'", "https://static.cloudflareinsights.com", "https://cloudflareinsights.com",
                    "X-Content-Type-Options: nosniff", "Referrer-Policy:", "Permissions-Policy:"]:
         if needed not in headers:
             problems.append(f"mist {needed}")
     if any(len(line) > 2000 for line in headers.splitlines()):
         problems.append("een regel is langer dan 2000 tekens (limiet van Cloudflare)")
-    check("_headers: CSP en beveiligingsheaders", not problems, "; ".join(problems))
+    check(f"_headers: CSP en beveiligingsheaders (Turnstile staat {turnstile})", not problems, "; ".join(problems))
 
-    # 6. Bedrijfsnaam en domein alleen in config.json
+    # 6. Lettertypen van de eigen site
+    fonts_dir = DIST / "fonts"
+    fonts_css = fonts_dir / "fonts.css"
+    problems = []
+    faces = set()
+    if not fonts_css.is_file():
+        problems.append("dist/fonts/fonts.css ontbreekt")
+    else:
+        for block in re.findall(r"@font-face\s*\{([^}]*)\}", fonts_css.read_text(encoding="utf-8")):
+            family = re.search(r"font-family:\s*\"([^\"]+)\"", block)
+            weight = re.search(r"font-weight:\s*(\d+)", block)
+            face = f"{family.group(1) if family else '?'} {weight.group(1) if weight else '?'}"
+            faces.add((family.group(1) if family else "", weight.group(1) if weight else ""))
+            if not re.search(r"font-display:\s*swap\s*;", block):
+                problems.append(f"{face}: geen font-display: swap")
+            urls = re.findall(r"url\(\"?([^\")]+)\"?\)", block)
+            if not urls:
+                problems.append(f"{face}: geen url()")
+            for url in urls:
+                target = (fonts_dir / url).resolve() if not url.startswith("/") else DIST / url.lstrip("/")
+                if re.match(r"^[a-z]+:", url):
+                    problems.append(f"{face}: {url} staat niet op de eigen site")
+                elif not target.is_file():
+                    problems.append(f"{face}: {url} bestaat niet in dist/fonts/")
+                elif target.read_bytes()[:4] != b"wOF2":
+                    problems.append(f"{face}: {url} is geen woff2-bestand")
+        if faces != FONTS:
+            problems.append(f"fonts.css heeft {sorted(faces)}, verwacht {sorted(FONTS)}")
+    for name in FONT_LICENSES:
+        if not (fonts_dir / name).is_file():
+            problems.append(f"de licentie {name} ontbreekt in dist/fonts/")
+    for name, page in pages.items():
+        if ("link", "/fonts/fonts.css") not in {(t, a.get("href")) for t, a in page.elements if a.get("rel") == "stylesheet"}:
+            problems.append(f"{name} laadt /fonts/fonts.css niet")
+    google = [f"{p.relative_to(ROOT)}" for base in (DIST, SRC, ROOT / "functions") for p in text_files(base)
+              if any(host in p.read_text(encoding="utf-8") for host in GOOGLE_FONTS)]
+    if google:
+        problems.append("Google Fonts staat nog in: " + ", ".join(google))
+    check("lettertypen: van de eigen site, met font-display: swap en de licenties, geen Google Fonts", not problems,
+          "; ".join(problems))
+
+    # 7. Bedrijfsnaam en domein alleen in config.json
     literals = [cfg["bedrijfsnaam"], cfg["domein"], "groengevonden.nl"]
     hits = []
     for base in (SRC, ROOT / "functions"):
@@ -401,7 +482,7 @@ def main():
                     hits.append(f"{p.relative_to(ROOT)} bevat \"{lit}\"")
     check("bedrijfsnaam en domein staan alleen in config.json", not hits, "; ".join(hits))
 
-    # 7. Privacyverklaring: dezelfde vinkjes als het formulier, en gelijk aan de bron
+    # 8. Privacyverklaring: dezelfde vinkjes als het formulier, en gelijk aan de bron
     privacy_text = norm_text(" ".join(text_blocks(DIST / "privacy.html")))
     wanted = [fn_consent.split(". ")[0] + "." if fn_consent else "(CONSENT_TEXT niet gevonden)",
               fn_vervolg or "(VERVOLG_TEXT niet gevonden)"]
@@ -419,7 +500,7 @@ def main():
     else:
         check(f"privacy.html: vergelijking met de bron overgeslagen ({master} bestaat hier niet)", True)
 
-    # 8. Geen gedachtestreepjes in de teksten
+    # 9. Geen gedachtestreepjes in de teksten
     dash_files = []
     own_files = sorted(p for base in (ROOT / "tools", ROOT / "tests") for p in base.glob("*")
                        if p.is_file() and p.name != "check_dist.py")  # dit bestand noemt de streepjes zelf

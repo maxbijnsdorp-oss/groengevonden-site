@@ -7,21 +7,27 @@
  * - Controleert naam, bedrijf, e-mail, gemeente en de toestemming.
  * - Honeypot: is het verborgen veld bedrijfswebsite_extra ingevuld, dan antwoorden we 200
  *   en sturen we niets (spambot).
- * - Spamcontrole met Cloudflare Turnstile: zonder geldige token (veld cf-turnstile-response) 403.
+ * - Spamcontrole met Cloudflare Turnstile is niet verplicht. Die staat alleen aan als TURNSTILE_SECRET_KEY
+ *   er is en turnstile_sitekey in config.json is ingevuld (dan toont de pagina de widget). Dan is een
+ *   geldige token nodig (veld cf-turnstile-response), anders 403. Staat Turnstile uit, dan beschermen de
+ *   honeypot, de controle op de Origin en de groottelimiet het formulier. Dat staat dan in de logs.
  * - Verstuurt een platte-tekstmail via de Resend HTTP API, met een Idempotency-Key tegen dubbele mails.
  *
- * Omgevingsvariabelen (Cloudflare: Settings > Variables and Secrets):
+ * Omgevingsvariabelen (Cloudflare: Settings > Variables and Secrets).
+ * Verplicht:
  *   RESEND_API_KEY        geheime API-sleutel van Resend (als Secret)
- *   TURNSTILE_SECRET_KEY  geheime sleutel van de Turnstile-widget (als Secret)
  *   FROM_EMAIL            afzender op een domein dat in Resend is geverifieerd,
  *                         bijvoorbeeld formulier@jouwdomein.nl (de bedrijfsnaam zet de functie er zelf voor)
  *   TO_EMAIL              waar de aanvraag heen moet; meerdere adressen met komma's scheiden
+ * Niet verplicht:
+ *   TURNSTILE_SECRET_KEY  geheime sleutel van de Turnstile-widget (als Secret). Werkt alleen samen met
+ *                         turnstile_sitekey in config.json.
  * Alleen voor tests, en alleen met een adres op 127.0.0.1 of localhost:
  *   RESEND_API_URL, TURNSTILE_VERIFY_URL
  *
  * Statuscodes: 200 verstuurd (of honeypot), 400 velden ontbreken of te lang, 403 ander domein of
- * geen geldige spamcontrole, 405 andere methode dan POST, 413 te groot, 415 verkeerd formaat,
- * 500 instellingen ontbreken, 502 Resend of Turnstile gaf een fout of was niet bereikbaar.
+ * (als Turnstile aan staat) geen geldige spamcontrole, 405 andere methode dan POST, 413 te groot,
+ * 415 verkeerd formaat, 500 instellingen ontbreken, 502 Resend of Turnstile gaf een fout of was niet bereikbaar.
  * Het antwoord bevat alleen ok en error. De details staan in de logs (console.error).
  */
 import config from "../../config.json";
@@ -38,6 +44,8 @@ const MAX_TOKEN_LENGTH = 2048;
 // aanvraag_id van main.js: één id per ingevuld formulier.
 const ID_RE = /^[A-Za-z0-9-]{8,64}$/;
 const SEND_FAILED = "Versturen lukte niet. Probeer het later opnieuw.";
+// Zonder deze instellingen kan de functie niets versturen (500). TURNSTILE_SECRET_KEY is niet verplicht.
+const REQUIRED_ENV = ["RESEND_API_KEY", "FROM_EMAIL", "TO_EMAIL"];
 
 // Maximale lengte per veld. Gelijk aan de maxlength in src/index.html (gemeente is een keuzelijst).
 const LIMITS = { naam: 100, bedrijf: 120, email: 254, telefoon: 30, gemeente: 60, website: 300 };
@@ -155,9 +163,10 @@ export async function onRequestPost({ request, env }) {
     });
   }
 
-  // Zonder token van de spamcontrole versturen we niets. Bezoekers zonder JavaScript hebben geen token.
+  // Staat Turnstile aan, dan versturen we niets zonder token. Bezoekers zonder JavaScript hebben dan geen token.
+  const turnstile = turnstileAan(env);
   const token = typeof raw[TOKEN_FIELD] === "string" ? raw[TOKEN_FIELD].trim() : "";
-  if (!token || token.length > MAX_TOKEN_LENGTH) {
+  if (turnstile && (!token || token.length > MAX_TOKEN_LENGTH)) {
     return reply(403, {
       ok: false,
       error: "De controle tegen spam ontbreekt. Het formulier werkt alleen als JavaScript aan staat.",
@@ -165,9 +174,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   // Welke instelling ontbreekt, staat alleen in de logs. De bezoeker hoeft dat niet te zien.
-  const missingEnv = ["RESEND_API_KEY", "TURNSTILE_SECRET_KEY", "FROM_EMAIL", "TO_EMAIL"].filter(
-    (name) => !env[name] || !String(env[name]).trim()
-  );
+  const missingEnv = REQUIRED_ENV.filter((name) => !filled(env[name]));
   if (missingEnv.length) {
     console.error(`scan: instellingen ontbreken: ${missingEnv.join(", ")}`);
     return reply(500, {
@@ -176,12 +183,14 @@ export async function onRequestPost({ request, env }) {
     });
   }
 
-  const verified = await verifyTurnstile(env, token, request.headers.get("CF-Connecting-IP"));
-  if (verified === "geweigerd") {
-    return reply(403, { ok: false, error: "De controle tegen spam is niet gelukt of verlopen. Probeer het opnieuw." });
-  }
-  if (verified !== "ok") {
-    return reply(502, { ok: false, error: SEND_FAILED });
+  if (turnstile) {
+    const verified = await verifyTurnstile(env, token, request.headers.get("CF-Connecting-IP"));
+    if (verified === "geweigerd") {
+      return reply(403, { ok: false, error: "De controle tegen spam is niet gelukt of verlopen. Probeer het opnieuw." });
+    }
+    if (verified !== "ok") {
+      return reply(502, { ok: false, error: SEND_FAILED });
+    }
   }
 
   // Geen tijdstip in de tekst: bij een tweede poging moet de inhoud precies gelijk zijn, anders werkt de
@@ -288,6 +297,37 @@ async function sendToResend(env, payload, key) {
 async function logResendError(res) {
   const detail = (await res.text().catch(() => "")).slice(0, 300);
   console.error(`scan: Resend gaf status ${res.status}: ${detail}`);
+}
+
+// Turnstile staat alleen aan als de pagina de widget toont (turnstile_sitekey in config.json, build.py zet
+// de widget er dan in) en de functie de token kan controleren (TURNSTILE_SECRET_KEY). Staat er maar één van
+// de twee, dan werkt het formulier zonder Turnstile. In alle gevallen zonder Turnstile staat er een melding
+// in de logs.
+function turnstileAan(env) {
+  const sitekey = filled(config.turnstile_sitekey);
+  const secret = filled(env.TURNSTILE_SECRET_KEY);
+  if (sitekey && secret) return true;
+  if (secret) {
+    console.error(
+      "scan: TURNSTILE_SECRET_KEY is gezet, maar turnstile_sitekey in config.json is leeg. De pagina toont dan " +
+        "geen spamcontrole, dus de functie controleert geen token. Vul de sitekey in of haal TURNSTILE_SECRET_KEY weg."
+    );
+  } else if (sitekey) {
+    console.warn(
+      "scan: turnstile_sitekey staat in config.json, maar TURNSTILE_SECRET_KEY ontbreekt. De token van Turnstile " +
+        "wordt niet gecontroleerd."
+    );
+  } else {
+    console.warn(
+      "scan: Turnstile staat uit (geen TURNSTILE_SECRET_KEY). Alleen de honeypot, de controle op de Origin en " +
+        "de groottelimiet beschermen het formulier."
+    );
+  }
+  return false;
+}
+
+function filled(value) {
+  return (typeof value === "string" || typeof value === "number") && String(value).trim() !== "";
 }
 
 // Vraagt Cloudflare of de token van de spamcontrole echt is. Een token werkt één keer en 300 seconden.

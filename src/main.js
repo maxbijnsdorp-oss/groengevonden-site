@@ -1,9 +1,11 @@
 /*
- * Kopieerknop voor het telefoonnummer en het scanformulier, met de spamcontrole (Cloudflare Turnstile).
- * Dit script staat in een eigen bestand, zodat de Content-Security-Policy
+ * Kopieerknop voor het telefoonnummer en het scanformulier, met de spamcontrole (Cloudflare Turnstile)
+ * als die aan staat. Dit script staat in een eigen bestand, zodat de Content-Security-Policy
  * geen inline scripts hoeft toe te staan. Het bevat geen bedrijfsgegevens:
  * het telefoonnummer leest het uit de pagina (#phone) en de sitekey uit #f-turnstile.
- * build.py vult die uit config.json.
+ * build.py vult die uit config.json. Is turnstile_sitekey in config.json leeg, dan zet build.py
+ * het vak #f-turnstile niet op de pagina. Dan laadt dit script Turnstile niet en gaat het formulier
+ * zonder token naar de server.
  */
 (function () {
   'use strict';
@@ -59,7 +61,8 @@
     return phoneText && text.indexOf(phoneText) === -1 ? text + belZin : text;
   }
 
-  /* Spamcontrole met Cloudflare Turnstile. Het script laden we pas als iemand het formulier gebruikt. */
+  /* Spamcontrole met Cloudflare Turnstile, alleen als het vak #f-turnstile op de pagina staat.
+     Het script laden we pas als iemand het formulier gebruikt. */
   var tsBox = document.getElementById('f-turnstile');
   var tsId = null;
   var tsStatus = ''; // '', 'laden', 'klaar' of 'mislukt'
@@ -85,8 +88,10 @@
     s.onerror = function () { tsStatus = 'mislukt'; tsFouten += 1; };
     document.head.appendChild(s);
   }
-  form.addEventListener('focusin', laadTurnstile);
-  form.addEventListener('pointerdown', laadTurnstile);
+  if (tsBox) {
+    form.addEventListener('focusin', laadTurnstile);
+    form.addEventListener('pointerdown', laadTurnstile);
+  }
   // Een token werkt maar één keer. Na een poging vraagt de widget een nieuwe aan.
   function nieuweToken() {
     if (window.turnstile && tsId !== null) {
@@ -134,10 +139,11 @@
       return;
     }
 
-    // Alle velden gaan mee, ook de honeypot bedrijfswebsite_extra en de token cf-turnstile-response.
+    // Alle velden gaan mee, ook de honeypot bedrijfswebsite_extra en (als Turnstile aan staat) de token
+    // cf-turnstile-response.
     var data = {};
     new FormData(form).forEach(function (value, key) { data[key] = value; });
-    if (!data['cf-turnstile-response']) {
+    if (tsBox && !data['cf-turnstile-response']) {
       show(tsFouten > 0
         ? metTelefoon('De controle tegen spam lukt nu niet. Probeer het over een paar seconden opnieuw.')
         : 'De controle tegen spam onder het formulier is nog bezig. Probeer het over een paar seconden opnieuw.', true);

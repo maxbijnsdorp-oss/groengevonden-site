@@ -1,10 +1,11 @@
 # Beveiligingsheaders voor alle pagina's en bestanden van de site.
 # Deze gelden NIET voor antwoorden van functions/ (zoals /api/scan). Die zetten hun eigen headers.
-# CSP: scripts alleen van de eigen site, van Cloudflare Web Analytics en van Cloudflare Turnstile
-# (de spamcontrole bij het formulier, die draait in een iframe van challenges.cloudflare.com).
-# Er staat geen inline script in de HTML (dat staat in /main.js). Inline styles en Google Fonts mogen wel.
+# CSP: scripts alleen van de eigen site en van Cloudflare Web Analytics. Lettertypen alleen van de eigen
+# site (/fonts/). Er staat geen inline script in de HTML (dat staat in /main.js). Inline styles mogen wel.
+# Het stuk over challenges.cloudflare.com (script en iframe van Turnstile, de spamcontrole bij het formulier)
+# zet build.py er alleen in als turnstile_sitekey in config.json is ingevuld.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self'; connect-src 'self' https://cloudflareinsights.com; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com{{#turnstile_sitekey}} https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com{{/turnstile_sitekey}}; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'self' https://cloudflareinsights.com; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()

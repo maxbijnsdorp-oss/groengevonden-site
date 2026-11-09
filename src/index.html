@@ -16,9 +16,7 @@
 <meta property="og:description" content="Wij houden het Google Bedrijfsprofiel en de website van hoveniers in het Gooi elke maand bij. Vaste prijs, per maand opzegbaar, één hovenier per gemeente.">
 <meta property="og:url" content="https://{{domein}}/">
 <meta name="twitter:card" content="summary">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500&family=Young+Serif&display=swap">
+<link rel="stylesheet" href="/fonts/fonts.css">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -620,8 +618,10 @@ footer .cols div{display:grid;gap:4px}
           <input id="f-vervolg" name="vervolg" type="checkbox">
           <span>Ja, je mag me daarna hooguit twee berichten sturen over wat je zou doen en wat het kost. Stoppen kan altijd met STOP. <span class="opt">(niet verplicht)</span></span>
         </label>
+        {{#turnstile_sitekey}}
         <div class="turnstile" id="f-turnstile" data-sitekey="{{turnstile_sitekey}}"></div>
         <noscript><p class="fineprint">Dit formulier werkt alleen met JavaScript. Bel of app ons liever: {{telefoon}}.</p></noscript>
+        {{/turnstile_sitekey}}
         <button class="btn btn-primary" type="submit" id="f-submit">Vraag mijn gratis scan aan</button>
         <div class="form-msg" id="form-msg" role="status" hidden></div>
       </form>
