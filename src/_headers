@@ -1,0 +1,19 @@
+# Beveiligingsheaders voor alle pagina's en bestanden van de site.
+# Deze gelden NIET voor antwoorden van functions/ (zoals /api/scan). Die zetten hun eigen headers.
+# CSP: scripts alleen van de eigen site en van Cloudflare Web Analytics. Er staat geen inline script
+# in de HTML (dat staat in /main.js). Inline styles en Google Fonts mogen wel.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self'; connect-src 'self' https://cloudflareinsights.com; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+  Strict-Transport-Security: max-age=31536000
+
+# De pages.dev-adressen niet laten indexeren. Zoekmachines moeten alleen https://{{domein}} tonen.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://:version.:project.pages.dev/*
+  X-Robots-Tag: noindex

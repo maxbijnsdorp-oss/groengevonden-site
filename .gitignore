@@ -1,0 +1,14 @@
+# Wordt gemaakt door build.py (zie README als je dist/ toch wilt meesturen)
+dist/
+
+# Node en wrangler (alleen voor lokaal testen)
+node_modules/
+.wrangler/
+
+# Lokale geheimen voor wrangler pages dev
+.dev.vars
+.env
+
+# Overig
+__pycache__/
+.DS_Store
