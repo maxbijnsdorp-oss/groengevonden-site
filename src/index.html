@@ -633,7 +633,7 @@ footer .cols div{display:grid;gap:4px}
   <div class="wrap">
     <div class="cols">
       <div><b style="color:var(--ink)">{{bedrijfsnaam}}</b><span>{{plaats}}</span><span>Eenmanszaak van <span class="ph">{{eigenaar}}</span></span></div>
-      <div><span>KvK <span class="ph">{{kvk}}</span></span><span>Btw-id <span class="ph">{{btw_id}}</span></span></div>
+      <div><span>KvK <span class="ph">{{kvk}}</span></span>{{#btw_id}}<span>Btw-id <span class="ph">{{btw_id}}</span></span>{{/btw_id}}</div>
       <div><a href="tel:{{telefoon_e164}}">{{telefoon}}</a><span class="ph">{{email}}</span><a href="/privacy">Privacyverklaring</a></div>
     </div>
     <p>Geen cookies, geen trackers.</p>

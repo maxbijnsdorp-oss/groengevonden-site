@@ -46,7 +46,7 @@ Anders stopt de build, want een komma of `@` in de naam maakt de afzender van de
 Bij een nieuw domein regel je buiten deze map nog drie dingen:
 
 - het domein koppelen in Cloudflare Pages (zie "Eigen domein koppelen");
-- het domein toevoegen in Resend en `FROM_EMAIL` aanpassen;
+- het subdomein `meldingen.<nieuw domein>` toevoegen in Resend en `FROM_EMAIL` aanpassen (zie "Resend instellen");
 - de privacyverklaring bijwerken, als die het oude domein noemt.
 
 ### Invulvelden tussen [ ]
@@ -54,6 +54,11 @@ Bij een nieuw domein regel je buiten deze map nog drie dingen:
 In `config.json` staan nog invulvelden: `[e-mailadres]`, `[naam ouder]`, `[KvK-nummer]`, `[btw-id]`
 en `Max [achternaam]`. De site toont die tekst met een stippellijn eronder.
 Vul je een echte waarde in, dan verdwijnt de stippellijn. Een echt e-mailadres wordt in de footer een klikbare link.
+
+Het btw-id is anders. Dat komt per brief van de Belastingdienst, binnen twee weken na de inschrijving bij de KvK
+([bron](https://www.kvk.nl/advies-en-informatie/bedrijf-starten/btw-nummer-alles-wat-je-wil-weten/)).
+Zolang `btw_id` nog `[btw-id]` is, staat de regel met het btw-id niet in de footer (`{{#btw_id}}` in `src/index.html`).
+Komt de brief, vul dan `btw_id` in en zet een nieuwe versie online. Dan staat het btw-id onderaan de site.
 
 `turnstile_sitekey` is leeg. Dan staat de spamcontrole Turnstile uit, en dat is goed zo.
 Zet je Turnstile later aan, dan komt hier de sitekey van je widget. Zie "Turnstile aanzetten (als er spam binnenkomt)".
@@ -64,9 +69,10 @@ Controleer voor de echte lancering:
 python3 build.py --streng
 ```
 
-Die stopt met een fout zolang er nog iets tussen [ ] staat. Ook als `turnstile_sitekey` nog de testsleutel
+Die stopt met een fout zolang er nog iets tussen [ ] staat, behalve bij `btw_id`. Ook als `turnstile_sitekey` nog de testsleutel
 van Cloudflare is (`1x00000000000000000000AA`, [bron](https://developers.cloudflare.com/turnstile/troubleshooting/testing/)),
-of als Turnstile aan staat en de privacyverklaring Turnstile niet noemt.
+of als Turnstile aan staat en de privacyverklaring dat niet zegt: ze noemt Turnstile niet, of nog met "als we dit aanzetten".
+Het KvK-nummer, het e-mailadres en de namen moeten er dus in staan. Het btw-id mag later (zie hierboven).
 Op Cloudflare Pages gaat dit vanzelf: een build van de productiebranch `main` is altijd streng.
 Cloudflare geeft de naam van de branch door in `CF_PAGES_BRANCH`
 ([bron](https://developers.cloudflare.com/pages/configuration/build-configuration/)).
@@ -81,11 +87,12 @@ python3 build.py
 
 - Kopieert `src/` naar `dist/` en vult elke `{{sleutel}}` in met de waarde uit `config.json`.
 - Werkt in `.html`, `.xml`, `.svg`, `.txt`, `_headers` en `_redirects`. Tekens als `&` en `<` worden veilig gemaakt.
-- Een stuk tussen `{{#sleutel}}` en `{{/sleutel}}` blijft alleen staan als die sleutel in `config.json` niet leeg is.
-  Zo komen het vak van Turnstile (in `src/index.html`) en de adressen van Turnstile in de CSP (in `src/_headers`)
-  alleen op de site als `turnstile_sitekey` is ingevuld.
-- De build zegt of Turnstile aan of uit staat. Staat Turnstile aan en noemt de privacyverklaring het niet,
-  dan waarschuwt hij. Met `--streng` stopt hij dan.
+- Een stuk tussen `{{#sleutel}}` en `{{/sleutel}}` blijft alleen staan als die sleutel in `config.json` is ingevuld:
+  niet leeg en geen tekst tussen [ ]. Zo komen het vak van Turnstile (in `src/index.html`) en de adressen van Turnstile
+  in de CSP (in `src/_headers`) alleen op de site als `turnstile_sitekey` is ingevuld. En de regel met het btw-id
+  in de footer pas als `btw_id` is ingevuld.
+- De build zegt of Turnstile aan of uit staat. Staat Turnstile aan en zegt de privacyverklaring dat niet
+  (ze noemt Turnstile niet, of nog met "als we dit aanzetten"), dan waarschuwt hij. Met `--streng` stopt hij dan.
 - Staat er daarna nog ergens `{{`, of klopt `config.json` niet, dan stopt de build met exitcode 1 en is er geen `dist/`.
   Cloudflare Pages markeert de build dan als mislukt en zet niets online
   ([bron](https://developers.cloudflare.com/pages/configuration/build-configuration/)).
@@ -136,7 +143,7 @@ het adres van het woff2-bestand en de `unicode-range`. Zet het bestand in `src/f
    - Build output directory: `dist`
    - Root directory: leeg laten. De map `functions/` staat in de hoofdmap, naast `build.py`. Daar zoekt Cloudflare hem.
    - Voor de branch `main` controleert `build.py` dan vanzelf streng (zie "Invulvelden tussen [ ]").
-     Zolang er nog invulvelden zijn, mislukt de build van `main` en zet Cloudflare niets nieuws online.
+     Zolang er nog invulvelden zijn (behalve het btw-id), mislukt de build van `main` en zet Cloudflare niets nieuws online.
      Wil je eerder testen, push dan naar een andere branch, bijvoorbeeld `test`. Die krijgt een preview-adres
      zoals `test.<projectnaam>.pages.dev`. Let op: zo'n preview is standaard voor iedereen te openen
      ([bron](https://developers.cloudflare.com/pages/configuration/preview-deployments/)).
@@ -186,8 +193,12 @@ npx wrangler pages deploy dist --project-name=<projectnaam>
 2. Voor het hoofddomein (zonder www) moet het domein een zone zijn in hetzelfde Cloudflare-account,
    met de nameservers van Cloudflare (zelfde bron).
 3. Maak niet zelf eerst een CNAME-record aan. Koppel het domein eerst in Pages, anders krijg je fout 522 (zelfde bron).
-4. www doorsturen naar het hoofddomein gaat met Bulk Redirects plus een proxied A-record `www` naar `192.0.2.1`
+4. www doorsturen naar het hoofddomein gaat met een Redirect Rule (Single Redirect) in de zone van je domein:
+   `https://www.*` naar `https://${1}`, status 301, query string behouden
+   ([bron](https://developers.cloudflare.com/rules/url-forwarding/examples/redirect-www-to-root/)).
+   Zet daarbij een proxied A-record `www` naar `192.0.2.1`. Een redirect werkt alleen op verkeer via Cloudflare
    ([bron](https://developers.cloudflare.com/pages/how-to/www-redirect/)).
+   Gebruik geen Bulk Redirects: die horen bij het account, en de sleutel voor Claude heeft alleen *Zone*, *Single Redirect*, *Edit*.
 
 De adressen op `pages.dev` krijgen via `_headers` de header `X-Robots-Tag: noindex`.
 Zo toont Google alleen je eigen domein ([bron](https://developers.cloudflare.com/pages/configuration/headers/)).
@@ -217,8 +228,8 @@ Zet deze in Cloudflare bij **Workers & Pages** > je project > **Settings** > **V
 | Naam | Wat vul je in | Soort | Verplicht |
 |---|---|---|---|
 | `RESEND_API_KEY` | De API-sleutel van Resend. Die begint met `re_` ([bron](https://resend.com/docs/api-reference/emails/send-email)). | Secret: kies **Encrypt** | Ja |
-| `FROM_EMAIL` | De afzender op je geverifieerde domein, bijvoorbeeld `formulier@groen-gevonden.nl`. De bedrijfsnaam zet de functie er zelf voor. | Gewone variabele | Ja |
-| `TO_EMAIL` | Waar de aanvragen heen moeten, bijvoorbeeld het Google Workspace-adres van Max. Meerdere adressen scheid je met een komma. | Gewone variabele | Ja |
+| `FROM_EMAIL` | De afzender op het subdomein dat je in Resend hebt geverifieerd: `formulier@meldingen.<jouw domein>` (zie "Resend instellen"). Een adres op het hoofddomein weigert Resend dan met een 403 ([bron](https://resend.com/docs/api-reference/errors)). De bedrijfsnaam zet de functie er zelf voor. | Gewone variabele | Ja |
+| `TO_EMAIL` | Waar de aanvragen heen moeten, bijvoorbeeld `info@<jouw domein>`, de mailbox van Google Workspace. Heeft Max een eigen mailbox (een extra licentie), dan `info@<jouw domein>,max@<jouw domein>`. Meerdere adressen scheid je met een komma. | Gewone variabele | Ja |
 | `TURNSTILE_SECRET_KEY` | De secret key van je Turnstile-widget. Alleen als je Turnstile aanzet, zie "Turnstile aanzetten (als er spam binnenkomt)". | Secret: kies **Encrypt** | Nee |
 
 Deploy opnieuw na een wijziging. Pas dan gebruikt de functie de nieuwe waarden (zelfde bron).
@@ -230,11 +241,16 @@ Zonder `TURNSTILE_SECRET_KEY` werkt het formulier gewoon. Bij elke aanvraag staa
 
 1. Maak een account aan op resend.com. Het gratis plan heeft 3.000 mails per maand, 100 per dag en 3 domeinen
    (gecontroleerd op 9 november 2026, [bron](https://resend.com/pricing)).
-2. Voeg je domein toe bij **Domains**. Staat je DNS bij Cloudflare, dan kan dat met de knop **Sign in to Cloudflare**.
-   Resend zet de DNS-records dan zelf ([bron](https://resend.com/docs/knowledge-base/cloudflare)).
-   Het MX-record van Resend komt op `send.<jouw domein>`, niet op het hoofddomein waar de mail van Google Workspace binnenkomt (zelfde bron).
-3. Maak een API-sleutel met alleen verzendrechten (`sending_access`)
+2. Voeg bij **Domains** het subdomein `meldingen.<jouw domein>` toe, niet het hoofddomein. Resend raadt sterk een subdomein aan
+   ([bron](https://resend.com/docs/add-a-domain)). Kies als regio Ierland (`eu-west-1`,
+   [bron](https://resend.com/docs/dashboard/domains/regions)) en laat Return-Path op `send` staan.
+   Staat je DNS bij Cloudflare, dan kan het met de knop **Sign in to Cloudflare**. Resend zet de DNS-records dan zelf
+   ([bron](https://resend.com/docs/knowledge-base/cloudflare)). De records komen op het subdomein: DKIM op
+   `resend._domainkey.meldingen` en het MX- en SPF-record op `send.meldingen`. Zo raken ze de mail van Google Workspace
+   op het hoofddomein niet (zelfde bron).
+3. Maak een API-sleutel met alleen verzendrechten (`sending_access`), voor het domein `meldingen.<jouw domein>`
    ([bron](https://resend.com/docs/api-reference/api-keys/create-api-key)). Zet die in Cloudflare als secret `RESEND_API_KEY`.
+   `FROM_EMAIL` wordt `formulier@meldingen.<jouw domein>`.
 
 Goed om te weten: Resend weigert verzoeken zonder `User-Agent`-header met een 403
 ([bron](https://resend.com/docs/api-reference/introduction)). De functie stuurt die header mee.
@@ -250,9 +266,11 @@ Komen er toch veel nepaanvragen binnen? Iemand met een klein script kan honderd 
 Dan is het gratis plan van Resend (100 mails per dag) op en werkt het formulier die dag niet meer.
 Zet dan Turnstile aan. Het formulier vraagt dan eerst een token aan Turnstile. Zonder geldige token stuurt de functie niets (status 403).
 
-1. Kijk eerst naar de privacyverklaring. Die noemt Turnstile al, in een alinea die begint met "Als we dit aanzetten".
-   Pas die zin aan, zodat er staat dat Turnstile aan staat (zie "Privacyverklaring bijwerken").
-   `python3 build.py --streng` stopt als Turnstile aan staat en de privacyverklaring Turnstile niet noemt.
+1. Pas eerst de privacyverklaring aan. Die noemt Turnstile al, met "als we dit aanzetten": in de alinea
+   "Spamcontrole bij het formulier" en in de regel van Cloudflare in de tabel met diensten. Haal "als we dit aanzetten"
+   op beide plekken weg, zodat er staat dat Turnstile aan staat. Maak daarna de privacypagina opnieuw
+   (zie "Privacyverklaring bijwerken"). `python3 build.py --streng` stopt als Turnstile aan staat en de privacyverklaring
+   Turnstile niet noemt, of nog "als we dit aanzetten" zegt.
 2. Ga in het Cloudflare-dashboard naar **Turnstile** en kies **Add widget**
    ([bron](https://developers.cloudflare.com/turnstile/get-started/widget-management/dashboard/)).
 3. Vul in: **Widget name** (bijvoorbeeld `Scanformulier`), bij **Hostname management** je domein,
@@ -267,8 +285,8 @@ Turnstile werkt pas als allebei staan: de sitekey in `config.json` en `TURNSTILE
 Staat er maar één, dan werkt het formulier zonder Turnstile en staat er een melding in de logs van de functie.
 Zo valt het formulier niet uit als een van de twee nog ontbreekt.
 
-Uitzetten gaat andersom: maak `turnstile_sitekey` leeg, haal `TURNSTILE_SECRET_KEY` weg en zet de alinea
-over Turnstile in de privacyverklaring terug naar "Als we dit aanzetten".
+Uitzetten gaat andersom: maak `turnstile_sitekey` leeg, haal `TURNSTILE_SECRET_KEY` weg en zet "als we dit aanzetten"
+terug in de alinea over Turnstile en in de regel van Cloudflare in de tabel. Maak daarna de privacypagina opnieuw.
 
 Het gratis plan heeft tot 20 widgets, 10 hostnamen per widget en geen limiet op het aantal controles
 (gecontroleerd op 9 november 2026, [bron](https://developers.cloudflare.com/turnstile/plans/)).
@@ -309,12 +327,23 @@ python3 tests/check_dist.py
 ```
 
 Dit controleert onder meer: geen `{{` meer, alle HTML-tags gesloten, interne links en ankers kloppen,
-JSON-LD klopt met `config.json`, geen inline scripts, dezelfde teksten bij beide vinkjes in pagina en functie,
+JSON-LD klopt met `config.json`, de footer noemt het KvK-nummer en het btw-id alleen als het is ingevuld, geen inline scripts, dezelfde teksten bij beide vinkjes in pagina en functie,
 dezelfde gemeenten en e-mailcontrole in pagina en functie, geen `novalidate`,
 Turnstile in pagina en CSP alleen als `turnstile_sitekey` is ingevuld, de functie heeft alleen `RESEND_API_KEY`,
 `FROM_EMAIL` en `TO_EMAIL` nodig, de lettertypen komen van de eigen site (met `font-display: swap` en de licenties,
 nergens Google Fonts), de privacyverklaring noemt beide vinkjes en is gelijk aan `website/privacy.html`
 (op de correcties na), en de bedrijfsnaam en het domein staan alleen in `config.json`.
+
+Pas je `build.py` aan? Draai dan ook:
+
+```
+python3 tests/check_build.py
+```
+
+Dat bouwt in tijdelijke kopieën, met testwaarden, en controleert de strenge controle: `--streng` en de build van `main`
+stoppen bij invulvelden, behalve bij het btw-id, de regel met het btw-id staat er alleen als het is ingevuld,
+en Turnstile aan met een privacyverklaring die het niet noemt of nog "als we dit aanzetten" zegt, stopt de build.
+Je eigen `config.json`, `src/` en `dist/` blijven zoals ze zijn.
 
 ### 2. Alles in één keer
 
@@ -334,7 +363,7 @@ Draai dan:
 tests/alle-tests.sh
 ```
 
-Dat duurt een paar minuten. Het script maakt twee tijdelijke kopieën van deze map: één zonder Turnstile
+Dat duurt een paar minuten. Eerst draait `tests/check_build.py`. Daarna maakt het script twee tijdelijke kopieën van deze map: één zonder Turnstile
 (lege `turnstile_sitekey`) en één met de testsleutel van Turnstile. In elke kopie draait het `build.py`,
 `tests/check_dist.py`, `tests/api-tests.sh` in alle vijf standen en `tests/browser-check.cjs` in drie standen.
 Je eigen `config.json`, `.dev.vars` en `dist/` blijven zoals ze zijn. Onderaan staat per stap OK of FOUT.
@@ -463,13 +492,15 @@ De bron is `10-Privacyverklaring.md` in de map hierboven. Deel 1 daarvan staat o
 en meldt elke plek met LET OP. Neem ze over in de bron. Daarna kun je ze uit `tools/privacy-bron.json` halen.
 Nu staan er geen correcties in.
 
-Staat Turnstile aan, dan moet de privacyverklaring Turnstile noemen. Doet ze dat niet, dan waarschuwt `build.py`
-en stopt `build.py --streng` (en dus de build van `main`).
+Staat Turnstile aan, dan moet de privacyverklaring zeggen dat Turnstile aan staat: ze noemt Turnstile, en nergens
+meer "als we dit aanzetten". Klopt dat niet, dan waarschuwt `build.py` en stopt `build.py --streng` (en dus de build
+van `main`). `tests/check_build.py` test dat.
 
 ## Nog te doen
 
-- De invulvelden in `config.json` invullen: e-mailadres, naam ouder, KvK-nummer, btw-id en achternaam.
-- Resend: account, domein verifiëren en API-sleutel. Daarna de drie verplichte variabelen in Cloudflare zetten.
+- De invulvelden in `config.json` invullen: e-mailadres, naam ouder, KvK-nummer en achternaam.
+  Het btw-id zodra de brief van de Belastingdienst er is.
+- Resend: account, het subdomein `meldingen.<jouw domein>` verifiëren en API-sleutel. Daarna de drie verplichte variabelen in Cloudflare zetten.
 - Als het domein gekoppeld is: de regel voor rate limiting op `/api/scan` maken (zie "Extra rem").
 - Turnstile pas als er spam binnenkomt (zie "Turnstile aanzetten (als er spam binnenkomt)").
 - Er is nog geen afbeelding voor als iemand de link deelt (`og:image`).

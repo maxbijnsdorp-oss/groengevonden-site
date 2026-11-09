@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Draait alle tests na elkaar, voor de site zonder Turnstile en met Turnstile (de testsleutel van Cloudflare):
+#   tests/check_build.py (één keer): de strenge controle van build.py, het btw-id en de privacyverklaring
 #   python3 build.py en tests/check_dist.py
 #   tests/api-tests.sh in alle vijf standen, dus zonder en met TURNSTILE_SECRET_KEY
 #   tests/browser-check.cjs in dezelfde standen, behalve mock
@@ -93,6 +94,9 @@ server() {
   done
   return 1
 }
+
+echo "== Strenge controle van build.py"
+stap "check_build.py" python3 "$REPO/tests/check_build.py"
 
 for variant in zonder met; do
   if [ "$variant" = met ]; then sitekey="$TEST_SITEKEY"; else sitekey=""; fi

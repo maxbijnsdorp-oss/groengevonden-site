@@ -10,6 +10,7 @@ Controleert:
 - elke interne link wijst naar een bestaand bestand of een bestaand #anker
 - geen inline <script> (behalve JSON-LD), CSP zonder 'unsafe-inline' voor scripts
 - JSON-LD is geldige JSON met de gegevens uit config.json
+- de footer noemt het KvK-nummer, en het btw-id alleen als btw_id in config.json is ingevuld
 - de bedrijfsnaam en het domein staan nergens letterlijk in src/ of functions/ (alleen in config.json)
 - de teksten bij vinkje 1 en vinkje 2 zijn gelijk aan CONSENT_TEXT en VERVOLG_TEXT in de functie
 - de maxlength van de velden is gelijk aan de limieten in de functie
@@ -18,13 +19,15 @@ Controleert:
   met een lege sitekey geen vak, geen melding voor bezoekers zonder JavaScript en niets van Turnstile in de CSP;
   het formulier heeft geen novalidate; de functie heeft TURNSTILE_SECRET_KEY niet nodig
 - lettertypen van de eigen site: fonts.css met de vijf lettertypen (font-display: swap), echte woff2-bestanden,
-  de licenties, elke pagina laadt fonts.css, nergens Google Fonts, en de CSP staat alleen font-src 'self' toe
+  de licenties, elke pagina laadt fonts.css, nergens Google Fonts (ook niet in de voorbeeldpagina's in ../website/),
+  en de CSP staat alleen font-src 'self' toe
 - de privacyverklaring noemt beide vinkjes met de tekst van nu, en niet meer het oude vinkje
 - de privacyverklaring is gelijk aan ../website/privacy.html, op de correcties in tools/privacy-bron.json na
   (alleen als dat bestand er is)
 - geen lange of halve kastlijnen (gedachtestreepjes) in de teksten
 """
 import difflib
+import html
 import json
 import re
 import sys
@@ -322,6 +325,19 @@ def main():
     except (IndexError, json.JSONDecodeError) as exc:
         check("index.html: JSON-LD klopt met config.json", False, str(exc))
 
+    # Footer: het KvK-nummer staat er altijd. De regel met het btw-id pas als btw_id is ingevuld (geen [btw-id]).
+    btw = cfg.get("btw_id", "").strip()
+    btw_filled = bool(btw) and not re.search(r"\[[^\]]+\]", btw)
+    problems = []
+    if "<span>KvK " not in index_html:
+        problems.append("de footer noemt het KvK-nummer niet")
+    if btw_filled and f"Btw-id {html.escape(btw)}" not in index_html:
+        problems.append(f"btw_id is ingevuld, maar de footer toont \"Btw-id {btw}\" niet")
+    if not btw_filled and "Btw-id" in index_html:
+        problems.append("btw_id is nog niet ingevuld, maar de footer heeft een regel voor het btw-id")
+    check(f"index.html: footer met KvK-nummer, btw-id alleen als het is ingevuld (nu {'ingevuld' if btw_filled else 'open'})",
+          not problems, "; ".join(problems))
+
     # 4. Formulier
     index = pages["index.html"]
     form = next((a for t, a in index.elements if t == "form" and a.get("id") == "scan-form"), {})
@@ -466,6 +482,10 @@ def main():
             problems.append(f"{name} laadt /fonts/fonts.css niet")
     google = [f"{p.relative_to(ROOT)}" for base in (DIST, SRC, ROOT / "functions") for p in text_files(base)
               if any(host in p.read_text(encoding="utf-8") for host in GOOGLE_FONTS)]
+    # Ook de voorbeeldpagina's naast de bron van de privacyverklaring (../website/), als die er zijn.
+    preview_dir = (ROOT / json.loads(PRIVACY_SETTINGS.read_text(encoding="utf-8"))["master_html"]).resolve().parent
+    google += [f"../{preview_dir.name}/{p.name}" for p in sorted(preview_dir.glob("*.html"))
+               if any(host in p.read_text(encoding="utf-8") for host in GOOGLE_FONTS)]
     if google:
         problems.append("Google Fonts staat nog in: " + ", ".join(google))
     check("lettertypen: van de eigen site, met font-display: swap en de licenties, geen Google Fonts", not problems,

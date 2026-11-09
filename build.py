@@ -3,9 +3,10 @@
 
 Gebruik:
     python3 build.py            bouwen; waarschuwt als er nog [invulvelden] in config.json staan
-    python3 build.py --streng   bouwen en stoppen met een fout als er nog [invulvelden] staan,
-                                als turnstile_sitekey nog de testsleutel is, of als Turnstile aan staat
-                                en de privacyverklaring Turnstile niet noemt
+    python3 build.py --streng   bouwen en stoppen met een fout als er nog [invulvelden] staan (btw_id mag
+                                nog open zijn), als turnstile_sitekey nog de testsleutel is, of als Turnstile
+                                aan staat en de privacyverklaring dat niet zegt: ze noemt Turnstile niet, of
+                                nog met "als we dit aanzetten"
 Op Cloudflare Pages staat de strenge controle vanzelf aan voor de productiebranch (PRODUCTIE_BRANCH,
 Pages zet CF_PAGES_BRANCH). Builds van andere branches (previews) mogen nog invulvelden hebben.
 
@@ -13,10 +14,13 @@ Regels:
 - {{sleutel}} wordt vervangen door de waarde uit config.json, in .html, .xml, .svg, .txt,
   _headers en _redirects. In HTML en XML wordt de waarde veilig gemaakt (& < > " ').
   In <script type="application/ld+json"> wordt hij als JSON-tekst ingevuld.
-- {{#sleutel}} ... {{/sleutel}}: dat stuk blijft alleen staan als de sleutel in config.json niet leeg is.
-  Staan de twee markeringen elk op een eigen regel, dan verdwijnen die regels helemaal.
-  Zo komt de spamcontrole (Turnstile) alleen op de site als turnstile_sitekey is ingevuld.
+- {{#sleutel}} ... {{/sleutel}}: dat stuk blijft alleen staan als de sleutel in config.json is ingevuld:
+  niet leeg en geen [invulveld]. Staan de twee markeringen elk op een eigen regel, dan verdwijnen die
+  regels helemaal. Zo komt de spamcontrole (Turnstile) alleen op de site als turnstile_sitekey is ingevuld,
+  en de regel met het btw-id pas als btw_id is ingevuld.
 - turnstile_sitekey mag leeg zijn: dan staat Turnstile uit. De andere velden mogen niet leeg zijn.
+- btw_id mag ook op de productiebranch nog [btw-id] zijn. Het btw-id komt per brief van de Belastingdienst,
+  binnen twee weken na de inschrijving bij de KvK. Tot dan staat de regel met het btw-id niet op de site.
 - <span class="ph">...</span> is de streepjeslijn voor een invulveld. Staat er na het invullen
   geen [tekst tussen haken] meer in, dan haalt de build de streepjeslijn weg.
   Een e-mailadres wordt dan een klikbare mailto-link.
@@ -47,6 +51,11 @@ REQUIRED_KEYS = [
 ]
 # Mogen leeg zijn of ontbreken (dan geldt de waarde hier). Leeg turnstile_sitekey: Turnstile staat uit.
 OPTIONAL_KEYS = {"turnstile_sitekey": ""}
+# Mogen ook bij --streng (en dus op de productiebranch) nog een [invulveld] zijn. Het btw-id komt per brief,
+# binnen twee weken na de inschrijving bij de KvK. Tot dan laat {{#btw_id}} de regel met het btw-id weg.
+LATER_KEYS = {"btw_id"}
+# Zo noemt de privacyverklaring Turnstile zolang het uit staat. Staat Turnstile aan, dan moet dit eruit.
+TURNSTILE_NOG_UIT = "als we dit aanzetten"
 HTML_SUFFIXES = {".html"}
 XML_SUFFIXES = {".xml", ".svg"}
 RAW_SUFFIXES = {".txt"}
@@ -75,6 +84,11 @@ TURNSTILE_TEST_KEY = re.compile(r"^[123]x0{20}[A-Z]{2}$")
 def is_open_field(value):
     """True als de waarde nog een invulveld bevat, zoals [naam ouder]."""
     return bool(BRACKETS.search(value))
+
+
+def is_filled(value):
+    """True als de waarde echt is ingevuld: niet leeg en geen invulveld zoals [btw-id]."""
+    return bool(value.strip()) and not is_open_field(value)
 
 
 def load_config():
@@ -142,13 +156,13 @@ def raw(value):
 
 
 def sections(text, cfg, unknown):
-    """Laat {{#sleutel}} ... {{/sleutel}} staan als de sleutel niet leeg is, anders gaat het stuk weg."""
+    """Laat {{#sleutel}} ... {{/sleutel}} staan als de sleutel is ingevuld, anders gaat het stuk weg."""
     def repl(match):
         key = match.group(1)
         if key not in cfg:
             unknown.add(key)
             return match.group(0)  # blijft staan; de controle op {{ meldt het met regelnummer
-        return match.group(2) if cfg[key].strip() else ""
+        return match.group(2) if is_filled(cfg[key]) else ""
     return SECTION.sub(repl, SECTION_LINES.sub(repl, text))
 
 
@@ -248,18 +262,25 @@ def build(strict):
     open_fields = [key for key, value in cfg.items() if is_open_field(value)]
     if TURNSTILE_TEST_KEY.match(cfg["turnstile_sitekey"]):
         open_fields.append("turnstile_sitekey (nog de testsleutel)")
-    if strict and open_fields:
-        errors.append("Nog niet ingevuld in config.json: " + ", ".join(open_fields) + ".")
+    must_fill = [key for key in open_fields if key not in LATER_KEYS]
+    if strict and must_fill:
+        errors.append("Nog niet ingevuld in config.json: " + ", ".join(must_fill) + ".")
 
-    # Staat Turnstile aan, dan moet de privacyverklaring het noemen. Andersom mag wel: de privacyverklaring
-    # mag Turnstile noemen als iets dat we kunnen aanzetten.
+    # Staat Turnstile aan, dan moet de privacyverklaring zeggen dat het aan staat. Ze moet Turnstile noemen,
+    # en niet meer met "als we dit aanzetten". Staat Turnstile uit, dan mag ze het zo noemen.
     turnstile = bool(cfg["turnstile_sitekey"].strip())
     privacy = DIST / "privacy.html"
-    privacy_mentions = privacy.is_file() and "Turnstile" in privacy.read_text(encoding="utf-8")
+    privacy_text = privacy.read_text(encoding="utf-8") if privacy.is_file() else ""
     notes = []
-    if turnstile and not privacy_mentions:
+    problem = None
+    if turnstile and "Turnstile" not in privacy_text:
         problem = ("Turnstile staat aan (turnstile_sitekey is ingevuld), maar de privacyverklaring noemt "
                    "Turnstile niet. Zet dat er eerst in (zie README, Turnstile aanzetten).")
+    elif turnstile and TURNSTILE_NOG_UIT in " ".join(privacy_text.lower().split()):
+        problem = ("Turnstile staat aan (turnstile_sitekey is ingevuld), maar de privacyverklaring zegt nog "
+                   f'"{TURNSTILE_NOG_UIT}". Pas eerst de alinea over Turnstile en de regel van Cloudflare in de '
+                   "tabel aan (zie README, Turnstile aanzetten).")
+    if problem:
         (errors if strict else notes).append(problem)
     if errors:
         fail(errors)
@@ -268,9 +289,12 @@ def build(strict):
     print(f"Klaar: {len(files)} bestanden in dist/ voor {cfg['bedrijfsnaam']} ({cfg['domein']}).")
     print("Ingevuld uit config.json: " + ", ".join(filled) + ".")
     print("Spamcontrole (Turnstile): " + ("aan." if turnstile else "uit, want turnstile_sitekey is leeg."))
-    if open_fields:
-        print("Let op: deze velden in config.json zijn nog niet ingevuld: " + ", ".join(open_fields) + ".")
+    if must_fill:
+        print("Let op: deze velden in config.json zijn nog niet ingevuld: " + ", ".join(must_fill) + ".")
         print("De site toont daar nu de tekst tussen [ ]. Vul ze in voordat je de site echt gebruikt.")
+    if "btw_id" in open_fields:
+        print("Let op: btw_id is nog niet ingevuld. De regel met het btw-id staat daarom nog niet op de site. "
+              "Vul het in zodra de brief van de Belastingdienst er is.")
     for note in notes:
         print(f"Let op: {note}")
 
@@ -278,7 +302,8 @@ def build(strict):
 def main():
     parser = argparse.ArgumentParser(description="Bouw de website van src/ naar dist/.")
     parser.add_argument("--streng", "--strict", dest="strict", action="store_true",
-                        help="stop met een fout als config.json nog [invulvelden] bevat")
+                        help="stop met een fout als config.json nog [invulvelden] bevat (btw_id mag nog open "
+                             "zijn), of als Turnstile aan staat en de privacyverklaring dat niet zegt")
     args = parser.parse_args()
     branch = os.environ.get("CF_PAGES_BRANCH", "")
     strict = args.strict or branch == PRODUCTIE_BRANCH
