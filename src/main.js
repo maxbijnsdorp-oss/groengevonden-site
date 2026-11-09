@@ -62,7 +62,7 @@
       return;
     }
     if (!f.toestemming.checked) {
-      show('Zet het vinkje bij de toestemming. Zonder dat vinkje mogen we je de scan niet mailen.', true);
+      show('Zet het eerste vinkje aan. Zonder dat vinkje kunnen we je de scan niet mailen.', true);
       return;
     }
 

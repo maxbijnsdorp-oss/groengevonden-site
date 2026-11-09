@@ -42,12 +42,13 @@ const FIELD_NAMES = {
 };
 const EMAIL_RE = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[^\s@<>(),;:"]+$/;
 
-// Dezelfde tekst als bij het vinkje in src/index.html. Pas ze samen aan.
-// tests/check_dist.py controleert na elke build dat ze gelijk zijn.
+// Dezelfde teksten als bij de twee vinkjes in src/index.html. Pas ze samen aan.
+// tests/check_dist.py controleert na elke build dat CONSENT_TEXT gelijk is aan vinkje 1.
 const CONSENT_TEXT =
-  `Ja, ${config.bedrijfsnaam} mag mij per e-mail de scan en maximaal twee vervolgberichten sturen ` +
-  `over de vindbaarheid van mijn bedrijf. Ik kan dit altijd stoppen door STOP te antwoorden. ` +
+  `Stuur mij de gratis scan per e-mail. ` +
   `Hoe we met je gegevens omgaan, staat in de privacyverklaring.`;
+const VERVOLG_TEXT =
+  "Ja, je mag me daarna hooguit twee berichten sturen over wat je zou doen en wat het kost. Stoppen kan altijd met STOP.";
 
 const BASE_HEADERS = {
   "Cache-Control": "no-store",
@@ -92,6 +93,7 @@ export async function onRequestPost({ request, env }) {
   const data = {};
   for (const key of Object.keys(LIMITS)) data[key] = clean(raw[key]);
   const consent = raw.toestemming === true || raw.toestemming === "on" || raw.toestemming === "true";
+  const vervolg = raw.vervolg === true || raw.vervolg === "on" || raw.vervolg === "true";
 
   const missing = [];
   if (!data.naam) missing.push("naam");
@@ -115,7 +117,7 @@ export async function onRequestPost({ request, env }) {
     if (!consent) {
       sentences.push(
         (sentences.length ? "Zet ook het vinkje" : "Zet het vinkje") +
-          " bij de toestemming. Zonder dat vinkje mogen we je de scan niet mailen."
+          " bij 'Stuur mij de gratis scan'. Zonder dat vinkje kunnen we je de scan niet mailen."
       );
     }
     return reply(400, {
@@ -149,9 +151,10 @@ export async function onRequestPost({ request, env }) {
     `Gemeente: ${data.gemeente}`,
     `Website of Google-profiel: ${data.website || "(niet ingevuld)"}`,
     "",
-    "Toestemming: ja, het vinkje stond aan.",
-    "Tekst bij het vinkje:",
+    "Vinkje 1 (verplicht): aan. Tekst:",
     `"${CONSENT_TEXT}"`,
+    `Vinkje 2 (vervolgberichten): ${vervolg ? "aan" : "uit, stuur ALLEEN de scan en geen vervolgmails"}. Tekst:`,
+    `"${VERVOLG_TEXT}"`,
     "",
     `Ontvangen op: ${receivedAt} (UTC)`,
     "",

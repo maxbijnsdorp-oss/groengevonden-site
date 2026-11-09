@@ -72,13 +72,14 @@ class PageParser(HTMLParser):
             return
         self.stack.append((tag, self.getpos()[0]))
         if tag == "label" and "consent" in a.get("class", "").split():
-            self.text_stack.append([])
+            # Alleen vinkje 1 (for="f-consent") is de verplichte toestemming voor de scan.
+            self.text_stack.append([] if a.get("for") == "f-consent" else None)
 
     def handle_startendtag(self, tag, attrs):
         self._attrs(tag, attrs)
 
     def handle_data(self, data):
-        if self.text_stack:
+        if self.text_stack and self.text_stack[-1] is not None:
             self.text_stack[-1].append(data)
 
     def handle_endtag(self, tag):
@@ -87,7 +88,9 @@ class PageParser(HTMLParser):
             self.problems.append(f"regel {line}: sluittag </{tag}> hoort niet bij een leeg element")
             return
         if tag == "label" and self.text_stack:
-            self.consent_text = " ".join("".join(self.text_stack.pop()).split())
+            collected = self.text_stack.pop()
+            if collected is not None:
+                self.consent_text = " ".join("".join(collected).split())
         if self.stack and self.stack[-1][0] == tag:
             self.stack.pop()
             return
