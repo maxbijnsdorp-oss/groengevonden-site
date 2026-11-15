@@ -51,7 +51,7 @@ Bij een nieuw domein regel je buiten deze map nog drie dingen:
 
 ### Invulvelden tussen [ ]
 
-In `config.json` staan nog invulvelden: `[e-mailadres]`, `[naam ouder]`, `[KvK-nummer]`, `[btw-id]`
+In `config.json` staan nog invulvelden: `[naam ouder]`, `[KvK-nummer]`, `[btw-id]`
 en `Max [achternaam]`. De site toont die tekst met een stippellijn eronder.
 Vul je een echte waarde in, dan verdwijnt de stippellijn. Een echt e-mailadres wordt in de footer een klikbare link.
 
@@ -229,7 +229,7 @@ Zet deze in Cloudflare bij **Workers & Pages** > je project > **Settings** > **V
 |---|---|---|---|
 | `RESEND_API_KEY` | De API-sleutel van Resend. Die begint met `re_` ([bron](https://resend.com/docs/api-reference/emails/send-email)). | Secret: kies **Encrypt** | Ja |
 | `FROM_EMAIL` | De afzender op het subdomein dat je in Resend hebt geverifieerd: `formulier@meldingen.<jouw domein>` (zie "Resend instellen"). Een adres op het hoofddomein weigert Resend dan met een 403 ([bron](https://resend.com/docs/api-reference/errors)). De bedrijfsnaam zet de functie er zelf voor. | Gewone variabele | Ja |
-| `TO_EMAIL` | Waar de aanvragen heen moeten, bijvoorbeeld `info@<jouw domein>`, de mailbox van Google Workspace. Heeft Max een eigen mailbox (een extra licentie), dan `info@<jouw domein>,max@<jouw domein>`. Meerdere adressen scheid je met een komma. | Gewone variabele | Ja |
+| `TO_EMAIL` | Waar de aanvragen heen moeten: `groengevonden@gmail.com`. Later, met Google Workspace, kan dat een adres op je eigen domein zijn. Meerdere adressen scheid je met een komma. | Gewone variabele | Ja |
 | `TURNSTILE_SECRET_KEY` | De secret key van je Turnstile-widget. Alleen als je Turnstile aanzet, zie "Turnstile aanzetten (als er spam binnenkomt)". | Secret: kies **Encrypt** | Nee |
 
 Deploy opnieuw na een wijziging. Pas dan gebruikt de functie de nieuwe waarden (zelfde bron).
