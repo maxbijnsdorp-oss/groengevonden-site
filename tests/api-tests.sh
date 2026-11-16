@@ -285,13 +285,13 @@ request "formulier zonder token (geen JavaScript)" POST /api/scan -H 'Accept: te
   --data-urlencode 'email=test@example.com' --data-urlencode 'gemeente=Huizen' --data-urlencode 'toestemming=on'
 if [ "$TS" = aan ]; then
   expect "403 met HTML-pagina" status_is 403
-  expect "noemt het telefoonnummer" body_has "Bellen of appen kan ook: $PHONE."
+  expect "noemt het telefoonnummer" body_has "Appen kan ook: $PHONE."
 else
   expect "$VALID_EXPECT met HTML-pagina, want Turnstile staat uit" status_is "$VALID_EXPECT"
   if [ "$VALID_EXPECT" = 200 ]; then
     expect "zegt dat de scan komt" body_has 'Je scan komt binnen twee werkdagen in je mailbox.'
   else
-    expect "noemt het telefoonnummer" body_has "Bellen of appen kan ook: $PHONE."
+    expect "noemt het telefoonnummer" body_has "Appen kan ook: $PHONE."
   fi
 fi
 
@@ -364,7 +364,7 @@ if [ -n "$MOCK" ]; then
 
   request "limiet van Resend (429)" POST /api/scan "${JSON[@]}" --data "${WITH_ID/test-0000-0001/test-quotum-0001}"
   expect "502" status_is 502
-  expect "vraagt te bellen, met nummer" body_has "Bel of app ons op $PHONE"
+  expect "vraagt te appen, met nummer" body_has "App ons op $PHONE"
   expect "noemt geen status van Resend" body_lacks 'resend_status'
 
   CONTROL='{"naam":"Test Persoon","bedrijf":"Testhoveniers","email":"test@example.com","telefoon":"06\u0085­123‮","gemeente":"Huizen","toestemming":"on","cf-turnstile-response":"XXXX.DUMMY.TOKEN.XXXX"}'

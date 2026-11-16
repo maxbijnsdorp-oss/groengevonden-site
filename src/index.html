@@ -23,7 +23,6 @@
   "@type": "ProfessionalService",
   "name": "{{bedrijfsnaam}}",
   "url": "https://{{domein}}/",
-  "telephone": "{{telefoon_e164}}",
   "description": "Google Bedrijfsprofiel en website bijhouden voor hoveniers, voor een vaste prijs per maand.",
   "address": {
     "@type": "PostalAddress",
@@ -501,7 +500,7 @@ footer .cols div{display:grid;gap:4px}
       </div>
       <ol class="steps">
         <li><h3>Gratis scan</h3><p>Je krijgt een scan van één pagina: jouw profiel naast je sterkste concurrent, met drie dingen die je meteen kunt verbeteren.</p></li>
-        <li><h3>Gesprek van 20 minuten</h3><p>We bellen kort. Welke klussen wil je meer, welke minder? Daarna krijg je dezelfde dag een offerte.</p></li>
+        <li><h3>Gesprek van 20 minuten</h3><p>Via een videogesprek of per mail. Welke klussen wil je meer, welke minder? Daarna krijg je dezelfde dag een offerte.</p></li>
         <li><h3>Binnen een week staat het</h3><p>Je profiel is compleet en de eerste berichten staan erop. Een nieuwe website staat binnen 7 werkdagen live.</p></li>
         <li><h3>Elke maand verder</h3><p>Nieuwe pagina's, berichten en reviewantwoorden. Je leest elke tekst voordat die live gaat.</p></li>
       </ol>
@@ -579,12 +578,11 @@ footer .cols div{display:grid;gap:4px}
           <p>Je profiel naast dat van je sterkste concurrent, plus drie dingen die je meteen kunt verbeteren. Gratis, en je zit nergens aan vast.</p>
         </div>
         <div>
-          <span class="label">Liever bellen of appen?</span>
+          <span class="label">Liever appen?</span>
           <div class="phone" style="margin-top:6px">
             <b id="phone">{{telefoon}}</b>
             <button class="copy" type="button" id="copy-phone">Kopieer nummer</button>
           </div>
-          <p class="fineprint" style="margin-top:6px">Bellen kan het best op werkdagen tussen 17.00 en 18.00.</p>
         </div>
       </div>
 
@@ -620,7 +618,7 @@ footer .cols div{display:grid;gap:4px}
         </label>
         {{#turnstile_sitekey}}
         <div class="turnstile" id="f-turnstile" data-sitekey="{{turnstile_sitekey}}"></div>
-        <noscript><p class="fineprint">Dit formulier werkt alleen met JavaScript. Bel of app ons liever: {{telefoon}}.</p></noscript>
+        <noscript><p class="fineprint">Dit formulier werkt alleen met JavaScript. App ons liever: {{telefoon}}.</p></noscript>
         {{/turnstile_sitekey}}
         <button class="btn btn-primary" type="submit" id="f-submit">Vraag mijn gratis scan aan</button>
         <div class="form-msg" id="form-msg" role="status" hidden></div>
@@ -634,7 +632,7 @@ footer .cols div{display:grid;gap:4px}
     <div class="cols">
       <div><b style="color:var(--ink)">{{bedrijfsnaam}}</b><span>{{plaats}}</span><span>Eenmanszaak van <span class="ph">{{eigenaar}}</span></span></div>
       <div><span>KvK <span class="ph">{{kvk}}</span></span>{{#btw_id}}<span>Btw-id <span class="ph">{{btw_id}}</span></span>{{/btw_id}}</div>
-      <div><a href="tel:{{telefoon_e164}}">{{telefoon}}</a><span class="ph">{{email}}</span><a href="/privacy">Privacyverklaring</a></div>
+      <div><span>WhatsApp: {{telefoon}}</span><span class="ph">{{email}}</span><a href="/privacy">Privacyverklaring</a></div>
     </div>
     <p>Geen cookies, geen trackers.</p>
   </div>

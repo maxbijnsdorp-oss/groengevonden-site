@@ -316,7 +316,6 @@ def main():
             "@type": "ProfessionalService",
             "name": cfg["bedrijfsnaam"],
             "url": f"https://{cfg['domein']}/",
-            "telephone": cfg["telefoon_e164"],
         }
         diffs = [f"{k}: {data.get(k)!r} in plaats van {v!r}" for k, v in expected.items() if data.get(k) != v]
         if len(data.get("areaServed", [])) != GEMEENTEN:

@@ -175,7 +175,7 @@ async function cspViolations(page) {
   const errMsg = await page.textContent('#form-msg');
   const errClass = await page.getAttribute('#form-msg', 'class');
   const expectedText = expectedStatus === 500 ? 'Het formulier is nog niet klaar voor gebruik.' : 'Versturen lukte niet.';
-  check('pagina toont nette foutmelding met telefoonnummer', errMsg.startsWith(expectedText) && errMsg.includes(`Bellen of appen kan ook: ${config.telefoon}.`) && errClass.includes('err'), `"${errMsg}" (class ${errClass})`);
+  check('pagina toont nette foutmelding met telefoonnummer', errMsg.startsWith(expectedText) && errMsg.includes(`Appen kan ook: ${config.telefoon}.`) && errClass.includes('err'), `"${errMsg}" (class ${errClass})`);
   check('ingevulde gegevens blijven staan na een fout', (await page.inputValue('#f-naam')) === 'Test Persoon');
   check('verstuurknop werkt weer na de fout', !(await page.isDisabled('#f-submit')));
   if (shotDir) await page.locator('#scan').screenshot({ path: path.join(shotDir, `formulier-${expectedStatus}.png`) });

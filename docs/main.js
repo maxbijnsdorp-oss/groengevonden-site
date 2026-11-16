@@ -12,7 +12,7 @@
 
   var phoneEl = document.getElementById('phone');
   var phoneText = phoneEl ? phoneEl.textContent.trim() : '';
-  var belZin = phoneText ? ' Bellen of appen kan ook: ' + phoneText + '.' : '';
+  var belZin = phoneText ? ' Appen kan ook: ' + phoneText + '.' : '';
 
   /* Telefoonnummer kopiëren */
   var copyBtn = document.getElementById('copy-phone');

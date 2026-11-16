@@ -261,10 +261,10 @@ export async function onRequestPost({ request, env }) {
   if (!res.ok) {
     await logResendError(res);
     if (res.status === 429) {
-      // Limiet van Resend bereikt (het gratis plan: 100 mails per dag). Vraag de bezoeker te bellen.
+      // Limiet van Resend bereikt (het gratis plan: 100 mails per dag). Vraag de bezoeker te appen.
       return reply(502, {
         ok: false,
-        error: `Het formulier is nu te druk. Je aanvraag is niet verstuurd. Bel of app ons op ${config.telefoon}, dan maken we je scan toch.`,
+        error: `Het formulier is nu te druk. Je aanvraag is niet verstuurd. App ons op ${config.telefoon}, dan maken we je scan toch.`,
       });
     }
     return reply(502, { ok: false, error: SEND_FAILED });
@@ -457,7 +457,7 @@ function htmlResponse(status, body) {
   let message = ok ? "Je scan komt binnen twee werkdagen in je mailbox." : body.error;
   // Bij een fout in de velden helpt de terugknop. Bij andere fouten noemen we ook het telefoonnummer.
   if (!ok && status !== 400 && !message.includes(config.telefoon)) {
-    message += ` Bellen of appen kan ook: ${config.telefoon}.`;
+    message += ` Appen kan ook: ${config.telefoon}.`;
   }
   // Geen link terug: die laadt het formulier leeg. Met de terugknop blijft wat je invulde meestal staan.
   const back = ok
