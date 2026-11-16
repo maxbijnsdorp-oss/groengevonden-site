@@ -4,7 +4,7 @@
  * - Neemt JSON (van main.js) of een gewoon formulier (application/x-www-form-urlencoded) aan.
  *   multipart/form-data weigeren we (415): het formulier gebruikt dat niet.
  * - Leest nooit meer dan MAX_BODY_BYTES, ook niet zonder Content-Length (chunked).
- * - Controleert naam, bedrijf, e-mail, gemeente en de toestemming.
+ * - Controleert naam, bedrijf, e-mail, gemeente, Google Bedrijfsprofiel en de toestemming.
  * - Honeypot: is het verborgen veld bedrijfswebsite_extra ingevuld, dan antwoorden we 200
  *   en sturen we niets (spambot).
  * - Spamcontrole met Cloudflare Turnstile is niet verplicht. Die staat alleen aan als TURNSTILE_SECRET_KEY
@@ -54,6 +54,7 @@ const REQUIRED_LABELS = {
   bedrijf: "de naam van je bedrijf",
   email: "een geldig e-mailadres",
   gemeente: "je gemeente",
+  website: "je Google Bedrijfsprofiel",
 };
 const FIELD_NAMES = {
   naam: "je naam",
@@ -61,7 +62,7 @@ const FIELD_NAMES = {
   email: "het e-mailadres",
   telefoon: "het telefoonnummer",
   gemeente: "de gemeente",
-  website: "de website",
+  website: "het Google Bedrijfsprofiel",
 };
 // Alleen gewone ASCII-adressen: geen spaties, komma's, <>, aanhalingstekens, punt aan begin of eind
 // van het deel voor de @, twee punten op rij of een domein zonder extensie.
@@ -135,6 +136,7 @@ export async function onRequestPost({ request, env }) {
   if (!data.bedrijf) missing.push("bedrijf");
   if (!validEmail(data.email)) missing.push("email");
   if (!GEMEENTEN.includes(data.gemeente)) missing.push("gemeente");
+  if (!data.website) missing.push("website");
   const tooLong = Object.keys(LIMITS).filter((key) => data[key].length > LIMITS[key]);
 
   if (missing.length || tooLong.length || !consent) {
@@ -203,7 +205,7 @@ export async function onRequestPost({ request, env }) {
     `E-mailadres: ${data.email}`,
     `Telefoon: ${data.telefoon || "(niet ingevuld)"}`,
     `Gemeente: ${data.gemeente}`,
-    `Website of Google-profiel: ${data.website || "(niet ingevuld)"}`,
+    `Google Bedrijfsprofiel: ${data.website}`,
     "",
     "Vinkje 1 (verplicht): aan. Tekst:",
     `"${CONSENT_TEXT}"`,

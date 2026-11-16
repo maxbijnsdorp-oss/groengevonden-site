@@ -205,12 +205,12 @@ echo
 echo "Formulier: POST /api/scan"
 request "leeg verzoek" POST /api/scan "${JSON[@]}" --data '{}'
 expect "400" status_is 400
-expect "noemt wat ontbreekt" body_has 'Vul nog in: je naam, de naam van je bedrijf, een geldig e-mailadres, je gemeente.'
+expect "noemt wat ontbreekt" body_has 'Vul nog in: je naam, de naam van je bedrijf, een geldig e-mailadres, je gemeente, je Google Bedrijfsprofiel.'
 expect "noemt ook het vinkje" body_has 'Zet ook het vinkje'
 
 request "velden ontbreken" POST /api/scan "${JSON[@]}" --data '{"naam":"Test","email":"geen-adres","toestemming":"on"}'
 expect "400" status_is 400
-expect "ontbreekt: bedrijf, email, gemeente" body_has '"ontbreekt":["bedrijf","email","gemeente"]'
+expect "ontbreekt: bedrijf, email, gemeente, website" body_has '"ontbreekt":["bedrijf","email","gemeente","website"]'
 
 request "zonder toestemming" POST /api/scan "${JSON[@]}" --data "${VALID/\"toestemming\":\"on\"/\"toestemming\":\"\"}"
 expect "400" status_is 400
@@ -273,7 +273,7 @@ fi
 
 request "geldige aanvraag (formulier, geen JavaScript)" POST /api/scan -H 'Accept: text/html' \
   --data-urlencode 'naam=Test Persoon' --data-urlencode 'bedrijf=Testhoveniers' \
-  --data-urlencode 'email=test@example.com' --data-urlencode 'gemeente=Huizen' --data-urlencode 'toestemming=on' \
+  --data-urlencode 'email=test@example.com' --data-urlencode 'gemeente=Huizen' --data-urlencode 'website=testhoveniers.nl' --data-urlencode 'toestemming=on' \
   --data-urlencode 'bedrijfswebsite_extra=' --data-urlencode "cf-turnstile-response=$TOKEN"
 expect "$VALID_EXPECT met HTML-pagina" status_is "$VALID_EXPECT"
 expect "HTML-antwoord" header_has "content-type: text/html"

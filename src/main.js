@@ -124,6 +124,7 @@
     var em = f.email.value.trim();
     if (em.length > 254 || em.indexOf('@') > 64 || !EMAIL_RE.test(em)) missing.push('een geldig e-mailadres');
     if (!f.gemeente.value) missing.push('je gemeente');
+    if (!f.website.value.trim()) missing.push('je Google Bedrijfsprofiel');
     if (missing.length) {
       show('Vul nog in: ' + missing.join(', ') + '.', true);
       return;

@@ -238,8 +238,9 @@ Daarna leg je `docs/` vast en stuur je het naar GitHub. GitHub Pages toont de ma
 Wat anders is dan bij de echte site:
 
 - Er staat `noindex` op elke pagina. Google neemt de voorlopige versie dus niet op.
-- Het formulier verstuurt zelf niets. De knop opent het mailprogramma van de bezoeker met de aanvraag.
-  GitHub Pages kan geen formulieren verwerken (`functions/api/scan.js` draait daar niet).
+- Het formulier stuurt de aanvraag via FormSubmit (formsubmit.co) naar het mailadres uit `config.json`.
+  GitHub Pages kan zelf geen formulieren verwerken (`functions/api/scan.js` draait daar niet).
+  Na de eerste aanvraag stuurt FormSubmit één mail met een activatieknop. Pas daarna komen aanvragen binnen.
 - Bovenaan staat "Voorlopige versie", en de privacypagina legt uit dat de site tijdelijk bij GitHub staat.
 - De gebruikersnaam en de naam van de repository staan in `tools/github-pages.json`.
 - Een eigen domein vul je daar in bij `eigen_domein`, maar pas als het domein gekocht is en de DNS klopt.

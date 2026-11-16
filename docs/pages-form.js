@@ -1,8 +1,11 @@
 /*
  * Alleen voor de voorlopige versie op GitHub Pages (zie tools/maak_github_pages.py).
- * GitHub Pages kan geen formulieren verwerken. Daarom opent dit script het mailprogramma
- * van de bezoeker met de ingevulde aanvraag. De bezoeker verstuurt die mail zelf.
- * Het vangt het versturen af voordat main.js het naar /api/scan stuurt.
+ * GitHub Pages kan zelf geen formulieren verwerken. Daarom stuurt dit script de aanvraag
+ * via de dienst FormSubmit (formsubmit.co) naar de mailbox van de zaak. De bezoeker hoeft
+ * zelf geen mail te schrijven. Het vangt het versturen af voordat main.js het naar /api/scan stuurt.
+ *
+ * Eerste keer: FormSubmit stuurt na de eerste aanvraag één mail naar de mailbox met een knop
+ * om het formulier te activeren. Pas daarna komen aanvragen binnen.
  */
 (function () {
   'use strict';
@@ -10,36 +13,77 @@
   if (!form) return;
   var EMAIL = 'groengevonden@gmail.com';
   var TELEFOON = '06 20 26 37 18';
+  var ENDPOINT = 'https://formsubmit.co/ajax/' + EMAIL;
   var msg = document.getElementById('form-msg');
+  var knop = document.getElementById('f-submit');
+  var bezig = false;
 
   function show(text, isError) {
     msg.textContent = text;
     msg.className = 'form-msg' + (isError ? ' err' : '');
     msg.hidden = false;
   }
+  function mislukt() {
+    show('Versturen lukte niet. Probeer het opnieuw, of mail naar ' + EMAIL + ' of app ' + TELEFOON + '.', true);
+  }
 
   document.addEventListener('submit', function (e) {
     if (e.target !== form) return;
     e.preventDefault();
     e.stopPropagation();
+    if (bezig) return;
     var f = form.elements;
     if (f.bedrijfswebsite_extra.value) return; // verborgen veld: alleen robots vullen dit in
-    if (!form.checkValidity()) {
-      show('Vul je naam, je bedrijf, je e-mailadres en je gemeente in. Zet ook het eerste vinkje aan.', true);
+
+    var ontbreekt = [];
+    if (!f.naam.value.trim()) ontbreekt.push('je naam');
+    if (!f.bedrijf.value.trim()) ontbreekt.push('de naam van je bedrijf');
+    if (!f.email.value.trim() || !f.email.checkValidity()) ontbreekt.push('een geldig e-mailadres');
+    if (!f.gemeente.value) ontbreekt.push('je gemeente');
+    if (!f.website.value.trim()) ontbreekt.push('je Google Bedrijfsprofiel');
+    if (ontbreekt.length) {
+      show('Vul nog in: ' + ontbreekt.join(', ') + '.', true);
       return;
     }
-    var regels = ['Hoi Max,', '', 'Stuur mij de gratis scan per e-mail.'];
-    if (f.vervolg.checked) {
-      regels.push('Ja, je mag me daarna hooguit twee berichten sturen over wat je zou doen en wat het kost.');
+    if (!f.toestemming.checked) {
+      show('Zet het eerste vinkje aan. Zonder dat vinkje kunnen we je de scan niet mailen.', true);
+      return;
     }
-    regels.push('', 'Naam: ' + f.naam.value.trim(), 'Bedrijf: ' + f.bedrijf.value.trim(),
-      'E-mailadres: ' + f.email.value.trim(), 'Gemeente: ' + f.gemeente.value);
-    if (f.telefoon.value.trim()) regels.push('Telefoon: ' + f.telefoon.value.trim());
-    if (f.website.value.trim()) regels.push('Website of Google-profiel: ' + f.website.value.trim());
-    window.location.href = 'mailto:' + EMAIL +
-      '?subject=' + encodeURIComponent('Gratis scan voor ' + f.bedrijf.value.trim()) +
-      '&body=' + encodeURIComponent(regels.join('\r\n'));
-    show('Je mailprogramma opent nu met je aanvraag. Klik daar op verzenden. Opent er niets? Mail naar ' +
-      EMAIL + ' of app ' + TELEFOON + '.', false);
+
+    var bedrijf = f.bedrijf.value.trim();
+    var data = {
+      _subject: 'Scanaanvraag: ' + bedrijf + ' (' + f.gemeente.value + ')',
+      _template: 'table',
+      _captcha: 'false',
+      _replyto: f.email.value.trim(),
+      Bedrijf: bedrijf,
+      'Google Bedrijfsprofiel': f.website.value.trim(),
+      Naam: f.naam.value.trim(),
+      'E-mailadres': f.email.value.trim(),
+      Telefoon: f.telefoon.value.trim() || '(niet ingevuld)',
+      Gemeente: f.gemeente.value,
+      'Vinkje 1, scan per e-mail': 'ja',
+      'Vinkje 2, hooguit twee vervolgberichten': f.vervolg.checked ? 'ja' : 'nee',
+      Aangevraagd: new Date().toLocaleString('nl-NL')
+    };
+
+    bezig = true;
+    knop.disabled = true;
+    show('Bezig met versturen...', false);
+    fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(data)
+    }).then(function (r) {
+      return r.json().then(function (antwoord) { return { ok: r.ok, antwoord: antwoord }; });
+    }).then(function (res) {
+      var gelukt = res.ok && String(res.antwoord.success) === 'true';
+      if (!gelukt) { mislukt(); return; }
+      form.reset();
+      show('Dank je. Je aanvraag is verstuurd. Je scan komt binnen twee werkdagen in je mailbox.', false);
+    }).catch(mislukt).then(function () {
+      bezig = false;
+      knop.disabled = false;
+    });
   }, true);
 })();

@@ -9,8 +9,9 @@ Wat het doet met de bestanden uit dist/:
 - zet het pad van de repo voor alle links (/groengevonden-site/...), want GitHub Pages
   zet de site in een submap;
 - zet 'noindex' op elke pagina, zodat Google de voorlopige versie niet opneemt;
-- vervangt het versturen via /api/scan door een mail vanuit het mailprogramma van de bezoeker.
-  GitHub Pages kan geen formulieren verwerken. Er wordt dus niets opgeslagen of doorgestuurd;
+- vervangt het versturen via /api/scan door versturen via FormSubmit (formsubmit.co), een gratis dienst
+  die de aanvraag doorstuurt naar het mailadres uit config.json. GitHub Pages kan zelf geen formulieren
+  verwerken. De eerste aanvraag levert één activatiemail op in die mailbox;
 - zet een regel 'Voorlopige versie' op elke pagina en een uitleg op de privacypagina;
 - laat _headers, robots.txt en sitemap.xml weg (die zijn voor Cloudflare en voor Google);
 - staat er een "eigen_domein" in tools/github-pages.json, dan komt de site in de hoofdmap van dat domein
@@ -41,10 +42,10 @@ NOTICE = (
 PRIVACY_NOTE = (
     '<p style="border:1px solid currentColor;border-radius:8px;padding:12px 14px">'
     "<b>Voorlopige versie.</b> Deze versie van de site staat tijdelijk bij GitHub Pages, niet bij Cloudflare. "
-    "GitHub ziet daarbij je IP-adres. Het formulier verstuurt zelf niets: het opent je eigen mailprogramma "
-    "met je aanvraag. Wij krijgen je gegevens pas als jij die mail verstuurt.</p>"
+    "GitHub ziet daarbij je IP-adres. Het formulier stuurt je aanvraag via de dienst FormSubmit (formsubmit.co) "
+    "naar onze mailbox. FormSubmit verwerkt daarbij wat je invult, alleen om het bericht bij ons af te leveren. "
+    "Op de definitieve site vervalt deze tussenstap.</p>"
 )
-FORM_HINT = '<p class="fineprint" style="margin-top:8px">De knop opent je mailprogramma met je aanvraag. Jij klikt daar op verzenden.</p>'
 
 
 def stop(message):
@@ -85,8 +86,6 @@ for source in sorted(DIST.rglob("*")):
             html = once(html, f'<script src="{PREFIX}/main.js" defer></script>',
                         f'<script src="{PREFIX}/main.js" defer></script>\n'
                         f'<script src="{PREFIX}/pages-form.js" defer></script>', relative.name)
-            html = once(html, '<div class="form-msg" id="form-msg"',
-                        FORM_HINT + '\n        <div class="form-msg" id="form-msg"', relative.name)
         if relative.name == "privacy.html":
             html = once(html, "<h1>Privacyverklaring</h1>", "<h1>Privacyverklaring</h1>\n" + PRIVACY_NOTE, relative.name)
         target.write_text(html, encoding="utf-8")
