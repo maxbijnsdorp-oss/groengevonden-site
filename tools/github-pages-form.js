@@ -70,10 +70,14 @@
     bezig = true;
     knop.disabled = true;
     show('Bezig met versturen...', false);
+    // Antwoordt de dienst niet binnen 20 seconden, dan stoppen we en ziet de bezoeker de foutmelding.
+    var stop = window.AbortController ? new AbortController() : null;
+    var klok = setTimeout(function () { if (stop) stop.abort(); }, 20000);
     fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      signal: stop ? stop.signal : undefined
     }).then(function (r) {
       return r.json().then(function (antwoord) { return { ok: r.ok, antwoord: antwoord }; });
     }).then(function (res) {
@@ -82,6 +86,7 @@
       form.reset();
       show('Dank je. Je aanvraag is verstuurd. Je scan komt binnen twee werkdagen in je mailbox.', false);
     }).catch(mislukt).then(function () {
+      clearTimeout(klok);
       bezig = false;
       knop.disabled = false;
     });
