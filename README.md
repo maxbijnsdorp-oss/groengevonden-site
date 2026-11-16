@@ -242,6 +242,9 @@ Wat anders is dan bij de echte site:
   GitHub Pages kan geen formulieren verwerken (`functions/api/scan.js` draait daar niet).
 - Bovenaan staat "Voorlopige versie", en de privacypagina legt uit dat de site tijdelijk bij GitHub staat.
 - De gebruikersnaam en de naam van de repository staan in `tools/github-pages.json`.
+- Een eigen domein vul je daar in bij `eigen_domein`, maar pas als het domein gekocht is en de DNS klopt.
+  Vul het niet eerder in bij Settings, Pages, "Custom domain": dan stuurt GitHub elke bezoeker door naar een
+  domein dat nog niet bestaat en opent de site niet meer.
 
 Zodra de site op Cloudflare Pages en het eigen domein staat, zet je GitHub Pages uit en verwijder je `docs/`.
 

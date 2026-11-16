@@ -12,7 +12,9 @@ Wat het doet met de bestanden uit dist/:
 - vervangt het versturen via /api/scan door een mail vanuit het mailprogramma van de bezoeker.
   GitHub Pages kan geen formulieren verwerken. Er wordt dus niets opgeslagen of doorgestuurd;
 - zet een regel 'Voorlopige versie' op elke pagina en een uitleg op de privacypagina;
-- laat _headers, robots.txt en sitemap.xml weg (die zijn voor Cloudflare en voor Google).
+- laat _headers, robots.txt en sitemap.xml weg (die zijn voor Cloudflare en voor Google);
+- staat er een "eigen_domein" in tools/github-pages.json, dan komt de site in de hoofdmap van dat domein
+  en maakt het script het bestand docs/CNAME. Vul dat pas in als het domein gekocht is en de DNS klopt.
 
 De echte site (Cloudflare Pages, eigen domein, werkend formulier) blijft dist/. Zie README.
 """
@@ -27,8 +29,10 @@ DIST = ROOT / "dist"
 DOCS = ROOT / "docs"
 PAGES = json.loads((ROOT / "tools" / "github-pages.json").read_text(encoding="utf-8"))
 CONFIG = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
-PREFIX = "/" + PAGES["repo"]
-BASE_URL = f"https://{PAGES['gebruiker']}.github.io{PREFIX}"
+# Met een eigen domein staat de site in de hoofdmap. Zonder eigen domein in de submap van de repo.
+EIGEN_DOMEIN = PAGES.get("eigen_domein", "").strip()
+PREFIX = "" if EIGEN_DOMEIN else "/" + PAGES["repo"]
+BASE_URL = f"https://{EIGEN_DOMEIN}" if EIGEN_DOMEIN else f"https://{PAGES['gebruiker']}.github.io{PREFIX}"
 
 NOTICE = (
     '<div style="background:#7a4688;color:#fff;font:600 14px/1.4 system-ui,sans-serif;'
@@ -97,8 +101,11 @@ form_js = form_js.replace("__EMAIL__", CONFIG["email"]).replace("__TELEFOON__", 
 (DOCS / "pages-form.js").write_text(form_js, encoding="utf-8")
 # Zonder dit bestand haalt GitHub de site door Jekyll. Dat is niet nodig.
 (DOCS / ".nojekyll").write_text("", encoding="utf-8")
+# GitHub leest het eigen domein uit dit bestand. Zonder eigen domein hoort het er niet te staan.
+if EIGEN_DOMEIN:
+    (DOCS / "CNAME").write_text(EIGEN_DOMEIN + "\n", encoding="utf-8")
 
-left = [p.name for p in DOCS.glob("*.html") if re.search(r'(href|src)="/(?!/|' + PAGES["repo"] + ")", p.read_text(encoding="utf-8"))]
+left = [p.name for p in DOCS.glob("*.html") if PREFIX and re.search(r'(href|src)="/(?!/|' + PAGES["repo"] + ")", p.read_text(encoding="utf-8"))]
 if left:
     stop(f"er staan nog paden zonder submap in: {', '.join(left)}")
 print(f"Klaar: docs/ voor {BASE_URL}/ ({len(list(DOCS.rglob('*')))} bestanden).")
