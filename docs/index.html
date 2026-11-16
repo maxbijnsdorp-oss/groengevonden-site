@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Groen Gevonden: beter vindbaar voor hoveniers in het Gooi</title>
+<meta name="description" content="Groen Gevonden houdt het Google Bedrijfsprofiel en de website van hoveniers in het Gooi elke maand bij. Vaste prijs, maandelijks opzegbaar, één hovenier per gemeente.">
+<link rel="canonical" href="https://maxbijnsdorp-oss.github.io/groengevonden-site/">
+<meta name="theme-color" content="#f2f4ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131915" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/groengevonden-site/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="nl_NL">
+<meta property="og:site_name" content="Groen Gevonden">
+<meta property="og:title" content="Groen Gevonden: gevonden worden door wie een tuin wil laten aanleggen">
+<meta property="og:description" content="Wij houden het Google Bedrijfsprofiel en de website van hoveniers in het Gooi elke maand bij. Vaste prijs, per maand opzegbaar, één hovenier per gemeente.">
+<meta property="og:url" content="https://maxbijnsdorp-oss.github.io/groengevonden-site/">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="/groengevonden-site/fonts/fonts.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfessionalService",
+  "name": "Groen Gevonden",
+  "url": "https://maxbijnsdorp-oss.github.io/groengevonden-site/",
+  "telephone": "+31620263718",
+  "description": "Google Bedrijfsprofiel en website bijhouden voor hoveniers, voor een vaste prijs per maand.",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Muiderberg",
+    "addressCountry": "NL"
+  },
+  "areaServed": [
+    {"@type": "AdministrativeArea", "name": "Gooise Meren"},
+    {"@type": "AdministrativeArea", "name": "Huizen"},
+    {"@type": "AdministrativeArea", "name": "Blaricum"},
+    {"@type": "AdministrativeArea", "name": "Laren"},
+    {"@type": "AdministrativeArea", "name": "Eemnes"},
+    {"@type": "AdministrativeArea", "name": "Hilversum"},
+    {"@type": "AdministrativeArea", "name": "Wijdemeren"},
+    {"@type": "AdministrativeArea", "name": "Weesp"},
+    {"@type": "AdministrativeArea", "name": "Almere"},
+    {"@type": "AdministrativeArea", "name": "Stichtse Vecht"},
+    {"@type": "AdministrativeArea", "name": "Baarn"},
+    {"@type": "AdministrativeArea", "name": "Soest"},
+    {"@type": "AdministrativeArea", "name": "De Ronde Venen"}
+  ]
+}
+</script>
+<script src="/groengevonden-site/main.js" defer></script>
+<script src="/groengevonden-site/pages-form.js" defer></script>
+<style>
+/* Layout: een tekenblad uit een tuinontwerp. Ruitjespapier, maatvoering in mono, een stempelvak rechtsonder. Heide-paars als enige accent, mosgroen als tweede stem. */
+:root{
+  --paper:#f2f4ee;
+  --sheet:#fbfcf8;
+  --ink:#1d2620;
+  --ink-soft:#4d5a51;
+  --line:#cdd5c8;
+  --grid:#e3e8dd;
+  --heide:#7a4688;
+  --heide-soft:#efe4f2;
+  --mos:#3f6a49;
+  --mos-soft:#dde9de;
+  --on-accent:#ffffff;
+  --display:"Young Serif", Georgia, "Times New Roman", serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --step--1:clamp(.82rem,.8rem + .1vw,.88rem);
+  --step-0:clamp(1rem,.97rem + .15vw,1.08rem);
+  --step-1:clamp(1.2rem,1.1rem + .4vw,1.4rem);
+  --step-2:clamp(1.5rem,1.3rem + .9vw,2rem);
+  --step-3:clamp(2.1rem,1.6rem + 2.2vw,3.4rem);
+  --radius:6px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#131915; --sheet:#1a221d; --ink:#e4ebe2; --ink-soft:#a9b6ac; --line:#34413a; --grid:#212b25;
+    --heide:#c99bd8; --heide-soft:#30223a; --mos:#8fbf98; --mos-soft:#1f3326; --on-accent:#1a1020;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#131915; --sheet:#1a221d; --ink:#e4ebe2; --ink-soft:#a9b6ac; --line:#34413a; --grid:#212b25;
+  --heide:#c99bd8; --heide-soft:#30223a; --mos:#8fbf98; --mos-soft:#1f3326; --on-accent:#1a1020;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:var(--step-0);line-height:1.6}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--paper)}
+h1,h2,h3{font-family:var(--display);font-weight:400;line-height:1.15;text-wrap:balance;margin:0}
+p{margin:0}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--heide);outline-offset:3px;border-radius:2px}
+.wrap{max-width:1140px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.label{font-family:var(--mono);font-size:var(--step--1);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.ph{border-bottom:1px dashed currentColor;opacity:.8}
+.muted{color:var(--ink-soft)}
+/* Honeypot: buiten beeld voor mensen, wel zichtbaar voor spambots */
+.hp{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+
+/* Header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--paper);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:12px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--display);font-size:1.25rem}
+.brand svg{width:30px;height:30px;flex:none}
+.nav{display:flex;align-items:center;gap:22px;font-size:var(--step--1)}
+.nav a{text-decoration:none;color:var(--ink-soft)}
+.nav a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:700 var(--step-0)/1.2 var(--body);padding:13px 20px;border-radius:var(--radius);text-decoration:none;border:1.5px solid transparent;cursor:pointer}
+.btn-primary{background:var(--heide);color:var(--on-accent)}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-ghost{border-color:var(--ink);color:var(--ink);background:transparent}
+.btn-ghost:hover{background:var(--sheet)}
+.nav .btn{padding:9px 14px;font-size:var(--step--1);color:var(--on-accent)}
+@media (max-width:760px){.nav a:not(.btn){display:none}}
+
+/* Hero */
+.hero .wrap{display:grid;grid-template-columns:1.05fr 1fr;gap:56px;align-items:center;padding-block:64px 72px}
+.hero-text{display:grid;gap:22px;min-width:0}
+.hero h1{font-size:var(--step-3)}
+.hero h1 em{font-style:normal;color:var(--heide)}
+.lead{font-size:var(--step-1);color:var(--ink-soft);max-width:34ch;line-height:1.5}
+.ctas{display:flex;flex-wrap:wrap;gap:12px}
+.fineprint{font-size:var(--step--1);color:var(--ink-soft)}
+@media (max-width:900px){.hero .wrap{grid-template-columns:1fr;gap:40px;padding-block:40px 56px}}
+
+/* Tekenblad (scan) */
+.sheet{background-color:var(--sheet);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:22px 22px;border:1.5px solid var(--ink);border-radius:2px;position:relative;min-width:0}
+.sheet-body{padding:26px 26px 18px;display:grid;gap:18px}
+.sheet-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sheet-head h2{font-size:var(--step-1)}
+.legend{display:flex;gap:14px;font-family:var(--mono);font-size:.75rem;color:var(--ink-soft)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:2px;display:inline-block}
+.sw-you{background:var(--heide)}
+.sw-them{background:var(--mos)}
+.metric{display:grid;gap:6px}
+.metric-top{display:flex;justify-content:space-between;gap:12px;font-size:var(--step--1)}
+.metric-top b{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bars{display:grid;gap:4px}
+.bar{height:10px;border-radius:2px}
+.bar.you{background:var(--heide)}
+.bar.them{background:var(--mos)}
+.checks{display:grid;gap:8px;border-top:1px dashed var(--line);padding-top:14px;font-size:var(--step--1)}
+.check{display:flex;gap:10px;align-items:baseline}
+.check .mark{font-family:var(--mono);font-weight:500;color:var(--heide);flex:none;width:1.2em}
+.stamp{display:grid;grid-template-columns:1.4fr 1fr 1fr;border-top:1.5px solid var(--ink);font-family:var(--mono);font-size:.72rem}
+.stamp div{padding:8px 10px;border-right:1px solid var(--line);display:grid;gap:2px;min-width:0}
+.stamp div:last-child{border-right:0}
+.stamp small{color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;font-size:.64rem}
+.stamp span{overflow-wrap:anywhere}
+.sheet-note{position:absolute;top:-12px;left:18px;background:var(--paper);border:1px solid var(--ink);font-family:var(--mono);font-size:.7rem;padding:2px 8px;letter-spacing:.04em}
+
+/* Secties */
+section{scroll-margin-top:80px}
+.band{border-top:1px solid var(--line)}
+.band .wrap{padding-block:72px}
+.band.alt{background:var(--sheet)}
+.sec-head{display:grid;gap:12px;max-width:62ch;margin-bottom:40px}
+.sec-head h2{font-size:var(--step-2)}
+.sec-head p{color:var(--ink-soft)}
+
+/* Probleem */
+.problem{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+.problem p+p{margin-top:14px}
+.fact{border-left:3px solid var(--mos);padding-left:18px;display:grid;gap:4px}
+.fact b{font-family:var(--display);font-weight:400;font-size:var(--step-3);line-height:1;color:var(--mos)}
+.facts{display:grid;gap:28px}
+@media (max-width:820px){.problem{grid-template-columns:1fr;gap:32px}}
+
+/* Pakket */
+.items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.item{background:var(--paper);padding:26px;display:grid;gap:10px;align-content:start}
+.band.alt .item{background:var(--sheet)}
+.item h3{font-size:var(--step-1)}
+.item p{color:var(--ink-soft)}
+.freq{font-family:var(--mono);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--mos)}
+@media (max-width:700px){.items{grid-template-columns:1fr}}
+.guarantee{margin-top:28px;display:flex;gap:16px;align-items:flex-start;border:1.5px dashed var(--heide);padding:20px 22px;border-radius:var(--radius);background:var(--heide-soft)}
+.guarantee b{font-family:var(--display);font-weight:400;font-size:var(--step-1)}
+
+/* Rapport */
+.report-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:48px;align-items:center}
+.report{background:var(--sheet);border:1px solid var(--line);border-radius:var(--radius);padding:24px;display:grid;gap:16px;min-width:0}
+.report-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline}
+.report-head h3{font-size:var(--step-1)}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.kpi{border:1px solid var(--line);border-radius:4px;padding:14px;display:grid;gap:2px}
+.kpi b{font-family:var(--mono);font-weight:500;font-size:1.6rem;font-variant-numeric:tabular-nums}
+.kpi .base{font-family:var(--mono);font-size:.72rem;color:var(--ink-soft)}
+.kpi.lead-kpi{grid-column:1/-1;border-color:var(--heide);background:var(--heide-soft)}
+.kpi.lead-kpi b{color:var(--heide);font-size:2.2rem}
+.report-note{font-size:.78rem;color:var(--ink-soft)}
+@media (max-width:820px){.report-grid{grid-template-columns:1fr;gap:28px}}
+
+/* Prijzen */
+.prices{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:20px;align-items:stretch}
+.price{border:1px solid var(--line);border-radius:var(--radius);padding:28px 24px;display:flex;flex-direction:column;gap:16px;background:var(--paper);min-width:0}
+.price.main{border:2px solid var(--heide);background:var(--sheet);position:relative;padding-top:40px}
+.price h3{font-size:var(--step-1)}
+.amount{display:grid;gap:2px}
+.amount b{font-family:var(--display);font-weight:400;font-size:var(--step-3);line-height:1}
+.amount b small{font-family:var(--body);font-size:var(--step-0);color:var(--ink-soft)}
+.amount span{font-family:var(--mono);font-size:.78rem;color:var(--ink-soft)}
+.price ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:var(--step--1)}
+.price li{display:flex;gap:10px}
+.price li::before{content:"";flex:none;width:7px;height:7px;margin-top:.55em;border-radius:50%;background:var(--mos)}
+.price .note{margin-top:auto;font-size:.78rem;color:var(--ink-soft);border-top:1px dashed var(--line);padding-top:12px}
+.tag{position:absolute;top:-18px;left:22px;background:var(--heide);color:var(--on-accent);font-family:var(--mono);font-size:.72rem;letter-spacing:.05em;padding:7px 22px 7px 14px;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%)}
+.terms{margin-top:28px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;font-size:var(--step--1);color:var(--ink-soft)}
+.terms b{color:var(--ink);display:block}
+@media (max-width:900px){.prices{grid-template-columns:1fr}.terms{grid-template-columns:1fr}}
+
+/* Stappen */
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;counter-reset:s}
+.steps li{counter-increment:s;display:grid;gap:8px;align-content:start;border-top:1.5px solid var(--ink);padding-top:16px}
+.steps li::before{content:"Stap " counter(s);font-family:var(--mono);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--heide)}
+.steps h3{font-size:var(--step-1)}
+.steps p{color:var(--ink-soft);font-size:var(--step--1)}
+@media (max-width:900px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.steps{grid-template-columns:1fr}}
+
+/* Eerlijk */
+.honest{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.honest div{display:grid;gap:8px;align-content:start}
+.honest .when{font-family:var(--mono);font-size:var(--step-1);color:var(--mos)}
+.honest p{color:var(--ink-soft);font-size:var(--step--1)}
+@media (max-width:820px){.honest{grid-template-columns:1fr}}
+
+/* Gemeenten */
+.region{display:grid;grid-template-columns:1fr 1.3fr;gap:48px;align-items:start}
+.towns{display:flex;flex-wrap:wrap;gap:10px;list-style:none;margin:0;padding:0}
+.towns li{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:var(--step--1);background:var(--paper)}
+.towns li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--mos)}
+.towns li.home{border-color:var(--heide)}
+.towns-legend{margin-top:14px;font-family:var(--mono);font-size:.75rem;color:var(--ink-soft)}
+@media (max-width:820px){.region{grid-template-columns:1fr;gap:28px}}
+
+/* Over */
+.about{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:start;max-width:820px}
+.monogram{width:84px;height:84px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;font-family:var(--display);font-size:2rem;background:var(--mos-soft)}
+.about p+p{margin-top:12px}
+@media (max-width:520px){.about{grid-template-columns:1fr}}
+
+/* FAQ */
+.faq{display:grid;gap:0;max-width:820px;border-top:1px solid var(--line)}
+.faq details{border-bottom:1px solid var(--line)}
+.faq summary{cursor:pointer;list-style:none;padding:18px 36px 18px 0;font-weight:700;position:relative}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";position:absolute;right:4px;top:14px;font-family:var(--mono);font-size:1.3rem;color:var(--heide)}
+.faq details[open] summary::after{content:"\2212"}
+.faq details p{padding:0 0 20px;color:var(--ink-soft);max-width:65ch}
+
+/* Formulier */
+.form-grid{display:grid;grid-template-columns:1fr 1.25fr;gap:56px;align-items:start}
+.contact{display:grid;gap:18px}
+.phone{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.phone b{font-family:var(--mono);font-weight:500;font-size:var(--step-1);user-select:all}
+.copy{font:500 .78rem var(--mono);padding:6px 10px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);border-radius:4px;cursor:pointer}
+form{background:var(--sheet);border:1.5px solid var(--ink);border-radius:2px;padding:28px;display:grid;gap:16px;min-width:0}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.field{display:grid;gap:6px;min-width:0}
+.field label{font-weight:700;font-size:var(--step--1)}
+.field .opt{font-weight:400;color:var(--ink-soft)}
+input[type=text],input[type=email],input[type=tel],input[type=url],select{font:inherit;font-size:var(--step-0);color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:11px 12px;width:100%}
+input:focus,select:focus{border-color:var(--heide);outline:2px solid var(--heide-soft)}
+.consent{display:flex;gap:12px;align-items:flex-start;font-size:var(--step--1);background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:14px}
+.consent .opt{color:var(--ink-soft)}
+.consent input{margin-top:.25em;width:18px;height:18px;accent-color:var(--heide);flex:none}
+.form-msg{font-size:var(--step--1);padding:14px;border-radius:4px;border:1px solid var(--mos);background:var(--mos-soft)}
+.form-msg.err{border-color:var(--heide);background:var(--heide-soft)}
+.turnstile:empty{display:none}
+@media (max-width:860px){.form-grid{grid-template-columns:1fr;gap:32px}}
+@media (max-width:520px){.row{grid-template-columns:1fr}form{padding:20px}}
+
+/* Footer */
+footer{border-top:1.5px solid var(--ink)}
+footer .wrap{padding-block:32px 40px;display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;font-size:var(--step--1);color:var(--ink-soft)}
+footer .cols{display:flex;gap:40px;flex-wrap:wrap}
+footer .cols div{display:grid;gap:4px}
+
+@media (prefers-reduced-motion:no-preference){
+  .btn,.nav a{transition:filter .15s,background .15s,color .15s}
+}
+</style>
+</head>
+<body>
+<div style="background:#7a4688;color:#fff;font:600 14px/1.4 system-ui,sans-serif;padding:8px 16px;text-align:center">Voorlopige versie. Dit bedrijf is nog in oprichting.</div>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Groen Gevonden, naar boven">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M16 2.5c-6.1 0-11 4.8-11 10.8 0 7.6 8.6 14.8 10.2 16.1a1.3 1.3 0 0 0 1.6 0C18.4 28.1 27 20.9 27 13.3 27 7.3 22.1 2.5 16 2.5Z" fill="var(--heide)"/>
+        <path d="M11 17.5c0-5 3.6-8.4 10-8.6-.2 6.3-3.7 9.9-8.5 9.9" fill="none" stroke="var(--on-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10.5 19.5c2.2-2.6 4.6-4.6 7.3-6.2" fill="none" stroke="var(--on-accent)" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      Groen Gevonden
+    </a>
+    <nav class="nav" aria-label="Hoofdmenu">
+      <a href="#pakket">Wat je krijgt</a>
+      <a href="#prijzen">Prijzen</a>
+      <a href="#werkwijze">Werkwijze</a>
+      <a href="#vragen">Vragen</a>
+      <a class="btn btn-primary" href="#scan">Gratis scan</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-text">
+        <span class="label">Voor hoveniers in het Gooi, de Vechtstreek en Almere</span>
+        <h1>Gevonden worden door wie een tuin wil <em>laten aanleggen</em>.</h1>
+        <p class="lead">Wij houden je Google Bedrijfsprofiel en je website elke maand bij. Jij stuurt foto's van je projecten. Geen leads huren, geen jaarcontract.</p>
+        <div class="ctas">
+          <a class="btn btn-primary" href="#scan">Vraag een gratis scan aan</a>
+          <a class="btn btn-ghost" href="#prijzen">Bekijk de prijzen</a>
+        </div>
+        <p class="fineprint">Vaste prijs vanaf EUR 349 per maand excl. btw. Per maand opzegbaar. Eén hovenier per gemeente.</p>
+      </div>
+
+      <figure class="sheet" style="margin:0" aria-labelledby="scan-title">
+        <span class="sheet-note">VOORBEELD, FICTIEVE CIJFERS</span>
+        <div class="sheet-body">
+          <div class="sheet-head">
+            <h2 id="scan-title">Vindbaarheidsscan</h2>
+            <div class="legend"><span><i class="sw sw-you"></i>jij</span><span><i class="sw sw-them"></i>beste concurrent</span></div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-top"><span>Google-reviews</span><b>6 tegen 41</b></div>
+            <div class="bars" aria-hidden="true"><div class="bar you" style="width:14.6%"></div><div class="bar them" style="width:100%"></div></div>
+          </div>
+          <div class="metric">
+            <div class="metric-top"><span>Foto's op je profiel</span><b>4 tegen 63</b></div>
+            <div class="bars" aria-hidden="true"><div class="bar you" style="width:6.3%"></div><div class="bar them" style="width:100%"></div></div>
+          </div>
+          <div class="metric">
+            <div class="metric-top"><span>Berichten, laatste 3 maanden</span><b>0 tegen 11</b></div>
+            <div class="bars" aria-hidden="true"><div class="bar you" style="width:1.5%"></div><div class="bar them" style="width:100%"></div></div>
+          </div>
+
+          <div class="checks">
+            <div class="check"><span class="mark">×</span><span>Website werkt niet goed op een telefoon</span></div>
+            <div class="check"><span class="mark">×</span><span>Geen pagina voor "hovenier Naarden", waar je wel werkt</span></div>
+            <div class="check"><span class="mark">×</span><span>Openingstijden en werkgebied ontbreken op je profiel</span></div>
+          </div>
+        </div>
+        <div class="stamp">
+          <div><small>Opdrachtgever</small><span>Voorbeeld Hoveniers, Bussum</span></div>
+          <div><small>Datum</small><span>nov 2026</span></div>
+          <div><small>Blad</small><span>1 / 1</span></div>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <section class="band alt" aria-labelledby="probleem">
+    <div class="wrap problem">
+      <div>
+        <div class="sec-head" style="margin-bottom:20px">
+          <span class="label">Hoe klanten je vinden</span>
+          <h2 id="probleem">Wie "hovenier Bussum" googelt, belt een van de eerste drie.</h2>
+        </div>
+        <p>Google laat bovenaan een kaartje zien met drie bedrijven, hun sterren, foto's en telefoonnummer. Wie daar goed staat, krijgt de aanvragen voor een nieuwe tuin. Ook klanten die via mond-tot-mond komen, zoeken je eerst op. Zien ze een half ingevuld profiel met een paar reviews, dan bellen ze de volgende.</p>
+        <p>Een leadplatform verkoopt dezelfde aanvraag vaak aan meerdere hoveniers. Een goed profiel en een eigen website zijn van jou, en de aanvragen die daaruit komen ook.</p>
+      </div>
+      <div class="facts">
+        <div class="fact"><b>52%</b><span>van de ingeschreven hoveniersbedrijven in Nederland heeft een website. De rest is online bijna onzichtbaar.</span></div>
+        <div class="fact"><b>EUR 1.500 tot 25.000</b><span>is wat een tuinaanleg of een ontwerp met aanleg opbrengt. Eén extra klus per kwartaal betaalt een jaar Groen Gevonden.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="pakket" aria-labelledby="pakket-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Het pakket Lokaal Vindbaar</span>
+        <h2 id="pakket-h">Wat je elke maand krijgt</h2>
+        <p>Een vaste lijst, elke maand hetzelfde. Je ziet precies wat er gedaan is.</p>
+      </div>
+      <div class="items">
+        <div class="item">
+          <span class="freq">Elke week</span>
+          <h3>Een levend Google-profiel</h3>
+          <p>Een bericht per week met een project van jou of een tip voor het seizoen. Diensten, openingstijden en werkgebied kloppen altijd.</p>
+        </div>
+        <div class="item">
+          <span class="freq">Elke maand</span>
+          <h3>Twee nieuwe pagina's op je website</h3>
+          <p>Een pagina over een echt project, met jouw foto's. En een artikel over wat klanten in dat seizoen zoeken, zoals "tuin winterklaar maken".</p>
+        </div>
+        <div class="item">
+          <span class="freq">Binnen 7 dagen</span>
+          <h3>Een antwoord op elke review</h3>
+          <p>Plus een kaartje met QR-code en een WhatsApp-tekst die je na elke klus stuurt. Zo komen er elke maand reviews bij.</p>
+        </div>
+        <div class="item">
+          <span class="freq">Begin van de maand</span>
+          <h3>Eén A4 met je cijfers</h3>
+          <p>Aanvragen, telefoontjes, routeaanvragen en weergaven, naast je cijfers van de start. Wat we deden en wat volgende maand komt.</p>
+        </div>
+      </div>
+      <div class="guarantee">
+        <div>
+          <b>Leveringsgarantie</b>
+          <p>Elke maand leveren wij de afgesproken onderdelen. Ontbreekt er iets, dan is die maand gratis.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band alt" aria-labelledby="rapport-h">
+    <div class="wrap report-grid">
+      <div class="sec-head" style="margin-bottom:0">
+        <span class="label">Het maandrapport</span>
+        <h2 id="rapport-h">Je ziet elke maand wat het oplevert</h2>
+        <p>Bovenaan staat het getal dat telt: hoeveel mensen een offerte vroegen. Daaronder de cijfers uit Google, steeds naast de nulmeting van je eerste maand. Geen grafiekjes om indruk te maken, wel één concrete actie van vijf minuten voor jou.</p>
+      </div>
+      <div class="report" aria-label="Voorbeeld van een maandrapport">
+        <div class="report-head">
+          <h3>Aanvragenrapport</h3>
+          <span class="label">Voorbeeld</span>
+        </div>
+        <div class="kpis">
+          <div class="kpi lead-kpi"><span class="label">Aanvragen deze maand</span><b>7</b><span class="base">bij de start: 2</span></div>
+          <div class="kpi"><span class="label">Telefoontjes via Google</span><b>23</b><span class="base">bij de start: 9</span></div>
+          <div class="kpi"><span class="label">Routeaanvragen</span><b>14</b><span class="base">bij de start: 5</span></div>
+          <div class="kpi"><span class="label">Reviews totaal</span><b>19</b><span class="base">bij de start: 6</span></div>
+          <div class="kpi"><span class="label">Nieuwe pagina's</span><b>2</b><span class="base">projectpagina en artikel</span></div>
+        </div>
+        <p class="report-note">Voorbeeld van de opmaak. De cijfers zijn verzonnen en geen belofte.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="prijzen" aria-labelledby="prijzen-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Prijzen</span>
+        <h2 id="prijzen-h">Vaste prijzen, gewoon op de site</h2>
+        <p>Je begint met een opstart en daarna het maandabonnement. Alle prijzen zijn exclusief 21% btw; het bedrag inclusief btw staat eronder.</p>
+      </div>
+      <div class="prices">
+        <div class="price">
+          <h3>Opstart Profiel</h3>
+          <div class="amount"><b>EUR 249</b><span>eenmalig, EUR 301,29 incl. btw</span></div>
+          <ul>
+            <li>Vindbaarheidsscan en nulmeting</li>
+            <li>Google Bedrijfsprofiel volledig ingericht</li>
+            <li>Eerste twee berichten en vijf vragen met antwoord</li>
+            <li>Kaartje met QR-code voor reviews</li>
+            <li>Contentplan voor drie maanden</li>
+          </ul>
+          <p class="note">Voor hoveniers met een website die goed werkt.</p>
+        </div>
+
+        <div class="price main">
+          <span class="tag">LANCEERPRIJS, EERSTE 5 HOVENIERS</span>
+          <h3>Lokaal Vindbaar</h3>
+          <div class="amount"><b>EUR 349 <small>per maand</small></b><span>EUR 422,29 incl. btw. Daarna EUR 395.</span></div>
+          <ul>
+            <li>Elke week een bericht op je Google-profiel</li>
+            <li>Elke maand twee nieuwe pagina's op je site</li>
+            <li>Antwoord op elke review binnen 7 dagen</li>
+            <li>Maandrapport met je aanvragen</li>
+            <li>Hosting en een kleine wijziging per maand</li>
+            <li>Geen andere hovenier in jouw gemeente</li>
+          </ul>
+          <p class="note">Geen minimale looptijd voor de eerste vijf hoveniers. Opzeggen kan per maand. De prijs gaat elk jaar alleen mee met de indexatie.</p>
+        </div>
+
+        <div class="price">
+          <h3>Opstart Website + Profiel</h3>
+          <div class="amount"><b>EUR 495</b><span>eenmalig, EUR 598,95 incl. btw</span></div>
+          <ul>
+            <li>Alles uit Opstart Profiel</li>
+            <li>Nieuwe website van 5 tot 7 pagina's</li>
+            <li>Snel op een telefoon, zonder cookiebanner</li>
+            <li>Contactformulier dat direct naar jou mailt</li>
+            <li>Live binnen 7 werkdagen, anders geld terug</li>
+          </ul>
+          <p class="note">De website is van jou zodra de opstart is betaald. De domeinnaam staat altijd op jouw naam.</p>
+        </div>
+      </div>
+      <div class="terms">
+        <div><b>Betalen voor de start</b>De eerste factuur betaal je met iDEAL. Daarna loopt het via automatische incasso.</div>
+        <div><b>Zit je nog vast aan een bureau?</b>Dan beginnen we de maand nadat je contract afloopt, zonder opstartkosten.</div>
+        <div><b>Drie maanden vooruit</b>Betaal je drie maanden in één keer, dan is de opstart gratis.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band alt" id="werkwijze" aria-labelledby="werkwijze-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Werkwijze</span>
+        <h2 id="werkwijze-h">Van scan tot eerste rapport</h2>
+      </div>
+      <ol class="steps">
+        <li><h3>Gratis scan</h3><p>Je krijgt een scan van één pagina: jouw profiel naast je sterkste concurrent, met drie dingen die je meteen kunt verbeteren.</p></li>
+        <li><h3>Gesprek van 20 minuten</h3><p>We bellen kort. Welke klussen wil je meer, welke minder? Daarna krijg je dezelfde dag een offerte.</p></li>
+        <li><h3>Binnen een week staat het</h3><p>Je profiel is compleet en de eerste berichten staan erop. Een nieuwe website staat binnen 7 werkdagen live.</p></li>
+        <li><h3>Elke maand verder</h3><p>Nieuwe pagina's, berichten en reviewantwoorden. Je leest elke tekst voordat die live gaat.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="eerlijk-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Wat we niet beloven</span>
+        <h2 id="eerlijk-h">Niemand kan de eerste plek in Google beloven. Wij ook niet.</h2>
+        <p>Wat we wel beloven, is dat het werk elke maand gebeurt. Dit is wat je mag verwachten, en wanneer.</p>
+      </div>
+      <div class="honest">
+        <div><span class="when">2 tot 8 weken</span><h3>Je profiel beweegt</h3><p>Meer weergaven, telefoontjes en routeaanvragen. Dit is meestal het eerste wat je merkt.</p></div>
+        <div><span class="when">3 tot 6 maanden</span><h3>Reviews stapelen op</h3><p>Met een kaartje na elke klus komen er elke maand een paar bij. Daar kijken klanten het eerst naar.</p></div>
+        <div><span class="when">6 tot 12 maanden</span><h3>Pagina's gaan meetellen</h3><p>Nieuwe pagina's hebben tijd nodig voordat Google ze hoog laat zien. Daarna blijven ze werken.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band alt" aria-labelledby="regio-h">
+    <div class="wrap region">
+      <div class="sec-head" style="margin-bottom:0">
+        <span class="label">Eén hovenier per gemeente</span>
+        <h2 id="regio-h">Wij werken niet voor je concurrent om de hoek</h2>
+        <p>Zolang je klant bent, nemen we geen andere hovenier in jouw gemeente aan. Wie het eerst komt, krijgt de plek.</p>
+      </div>
+      <div>
+        <ul class="towns">
+          <li class="home">Gooise Meren</li><li>Huizen</li><li>Blaricum</li><li>Laren</li><li>Eemnes</li><li>Hilversum</li><li>Wijdemeren</li><li>Weesp</li><li>Almere</li><li>Stichtse Vecht</li><li>Baarn</li><li>Soest</li><li>De Ronde Venen</li>
+        </ul>
+        <p class="towns-legend">Groene stip: plek nog vrij. Stand november 2026.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="over-h">
+    <div class="wrap">
+      <div class="about">
+        <div class="monogram" aria-hidden="true">M</div>
+        <div>
+          <span class="label">Wie zit erachter</span>
+          <h2 id="over-h" style="font-size:var(--step-2);margin:8px 0 16px">Max, uit Muiderberg</h2>
+          <p>Ik ben Max en ik woon in Muiderberg. Ik heb Groen Gevonden opgezet omdat ik zag hoeveel goede hoveniers hier online bijna niet te vinden zijn, terwijl hun tuinen prachtig zijn.</p>
+          <p>Ik werk alleen. Het schrijf- en bouwwerk doe ik met hulp van AI. Ik controleer alles, en jij ziet elke tekst voordat die live gaat. Alles wat we voor je maken, staat in een eigen overzicht dat jij altijd kunt inzien.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band alt" id="vragen" aria-labelledby="vragen-h">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Vragen</span>
+        <h2 id="vragen-h">Wat hoveniers ons vragen</h2>
+      </div>
+      <div class="faq">
+        <details><summary>Ik krijg al genoeg werk via mond-tot-mond. Waarom zou ik dit doen?</summary><p>Dan werkt dit als versterker. Bijna iedereen die jouw naam doorkrijgt, zoekt je eerst op. Een volledig profiel met recente reviews bevestigt de aanbeveling. En je vangt ook de mensen die niemand kennen om het aan te vragen.</p></details>
+        <details><summary>Hoeveel tijd kost het mij?</summary><p>Na een intake van 20 minuten ongeveer 10 minuten per maand: foto's van je projecten sturen, het rapport lezen en een tekst goedkeuren.</p></details>
+        <details><summary>Ik heb al een website. Moet die weg?</summary><p>Nee. Werkt je website goed, dan houden we hem en zetten we de nieuwe pagina's erop. Alleen als je geen site hebt, of een site die niet werkt op een telefoon, bouwen we een nieuwe.</p></details>
+        <details><summary>Gebruik je AI?</summary><p>Ja, voor het schrijven en bouwen. Elke tekst wordt gecontroleerd en jij ziet hem voordat hij live gaat. Prijzen en garanties van jouw bedrijf zetten we er alleen op als jij ze hebt bevestigd.</p></details>
+        <details><summary>Kan ik stoppen wanneer ik wil?</summary><p>Ja. Voor de eerste vijf hoveniers is er geen minimale looptijd, je zegt op met een maand opzegtermijn. Wat we voor je hebben gemaakt, blijft van jou.</p></details>
+        <details><summary>Werk je ook buiten het Gooi?</summary><p>We beginnen in het Gooi, de Vechtstreek, Weesp en Almere. Zit je net daarbuiten, vraag dan gerust een scan aan.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="scan" aria-labelledby="scan-h">
+    <div class="wrap form-grid">
+      <div class="contact">
+        <div class="sec-head" style="margin-bottom:0">
+          <span class="label">Gratis vindbaarheidsscan</span>
+          <h2 id="scan-h">Zie in één pagina hoe je ervoor staat</h2>
+          <p>Je profiel naast dat van je sterkste concurrent, plus drie dingen die je meteen kunt verbeteren. Gratis, en je zit nergens aan vast.</p>
+        </div>
+        <div>
+          <span class="label">Liever bellen of appen?</span>
+          <div class="phone" style="margin-top:6px">
+            <b id="phone">06 20 26 37 18</b>
+            <button class="copy" type="button" id="copy-phone">Kopieer nummer</button>
+          </div>
+          <p class="fineprint" style="margin-top:6px">Bellen kan het best op werkdagen tussen 17.00 en 18.00.</p>
+        </div>
+      </div>
+
+      <form id="scan-form" action="/groengevonden-site/api/scan" method="post" data-endpoint="/groengevonden-site/api/scan">
+        <div class="row">
+          <div class="field"><label for="f-naam">Je naam</label><input id="f-naam" name="naam" type="text" autocomplete="name" maxlength="100" required></div>
+          <div class="field"><label for="f-bedrijf">Naam van je bedrijf</label><input id="f-bedrijf" name="bedrijf" type="text" autocomplete="organization" maxlength="120" required></div>
+        </div>
+        <div class="row">
+          <div class="field"><label for="f-email">E-mailadres</label><input id="f-email" name="email" type="email" autocomplete="email" maxlength="254" required></div>
+          <div class="field"><label for="f-tel">Telefoon <span class="opt">(niet verplicht)</span></label><input id="f-tel" name="telefoon" type="tel" autocomplete="tel" maxlength="30"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label for="f-gemeente">Gemeente</label>
+            <select id="f-gemeente" name="gemeente" required>
+              <option value="">Kies je gemeente</option>
+              <option>Gooise Meren</option><option>Huizen</option><option>Blaricum</option><option>Laren</option><option>Eemnes</option><option>Hilversum</option><option>Wijdemeren</option><option>Weesp</option><option>Almere</option><option>Stichtse Vecht</option><option>Baarn</option><option>Soest</option><option>De Ronde Venen</option><option>Andere gemeente</option>
+            </select>
+          </div>
+          <div class="field"><label for="f-site">Website of Google-profiel <span class="opt">(niet verplicht)</span></label><input id="f-site" name="website" type="text" maxlength="300" placeholder="bijvoorbeeld jouwbedrijf.nl"></div>
+        </div>
+        <div class="hp" aria-hidden="true">
+          <label for="f-extra">Laat dit veld leeg</label>
+          <input id="f-extra" name="bedrijfswebsite_extra" type="text" tabindex="-1" autocomplete="off">
+        </div>
+        <label class="consent" for="f-consent">
+          <input id="f-consent" name="toestemming" type="checkbox" required>
+          <span>Stuur mij de gratis scan per e-mail. Hoe we met je gegevens omgaan, staat in de <a href="/groengevonden-site/privacy">privacyverklaring</a>.</span>
+        </label>
+        <label class="consent" for="f-vervolg">
+          <input id="f-vervolg" name="vervolg" type="checkbox">
+          <span>Ja, je mag me daarna hooguit twee berichten sturen over wat je zou doen en wat het kost. Stoppen kan altijd met STOP. <span class="opt">(niet verplicht)</span></span>
+        </label>
+        <button class="btn btn-primary" type="submit" id="f-submit">Vraag mijn gratis scan aan</button>
+        <p class="fineprint" style="margin-top:8px">De knop opent je mailprogramma met je aanvraag. Jij klikt daar op verzenden.</p>
+        <div class="form-msg" id="form-msg" role="status" hidden></div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div><b style="color:var(--ink)">Groen Gevonden</b><span>Muiderberg</span><span>Eenmanszaak van <span class="ph">[naam ouder]</span></span></div>
+      <div><span>KvK <span class="ph">[KvK-nummer]</span></span></div>
+      <div><a href="tel:+31620263718">06 20 26 37 18</a><a href="mailto:groengevonden@gmail.com">groengevonden@gmail.com</a><a href="/groengevonden-site/privacy">Privacyverklaring</a></div>
+    </div>
+    <p>Geen cookies, geen trackers.</p>
+  </div>
+</footer>
+
+</body>
+</html>

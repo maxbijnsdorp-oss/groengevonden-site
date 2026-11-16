@@ -220,6 +220,31 @@ Of dat goed samengaat met de strenge CSP van deze site is niet getest (niet geve
 Kijk na de lancering of je e-mailadres in de footer goed leesbaar is.
 Zie je `[email protected]`, zet dan **Email Address Obfuscation** uit bij **Security** > **Settings** (zelfde bron).
 
+## Voorlopige versie op GitHub Pages
+
+Zolang er geen Cloudflare-account en geen eigen domein is, staat er een gratis voorlopige versie bij GitHub Pages:
+https://maxbijnsdorp-oss.github.io/groengevonden-site/
+
+Die versie staat in de map `docs/`. Je maakt hem zo opnieuw:
+
+```bash
+python3 build.py
+python3 tools/maak_github_pages.py
+```
+
+Daarna leg je `docs/` vast en stuur je het naar GitHub. GitHub Pages toont de map `docs/` van de branch `main`
+(Settings, Pages, "Deploy from a branch").
+
+Wat anders is dan bij de echte site:
+
+- Er staat `noindex` op elke pagina. Google neemt de voorlopige versie dus niet op.
+- Het formulier verstuurt zelf niets. De knop opent het mailprogramma van de bezoeker met de aanvraag.
+  GitHub Pages kan geen formulieren verwerken (`functions/api/scan.js` draait daar niet).
+- Bovenaan staat "Voorlopige versie", en de privacypagina legt uit dat de site tijdelijk bij GitHub staat.
+- De gebruikersnaam en de naam van de repository staan in `tools/github-pages.json`.
+
+Zodra de site op Cloudflare Pages en het eigen domein staat, zet je GitHub Pages uit en verwijder je `docs/`.
+
 ## Omgevingsvariabelen
 
 Zet deze in Cloudflare bij **Workers & Pages** > je project > **Settings** > **Variables and Secrets** > **Add**

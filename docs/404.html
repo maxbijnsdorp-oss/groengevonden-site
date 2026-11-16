@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pagina niet gevonden | Groen Gevonden</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#f2f4ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131915" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/groengevonden-site/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/groengevonden-site/fonts/fonts.css">
+<style>
+/* Zelfde tekenblad als de homepage: ruitjespapier, maatvoering in mono, stempelvak. */
+:root{
+  --paper:#f2f4ee; --sheet:#fbfcf8; --ink:#1d2620; --ink-soft:#4d5a51; --line:#cdd5c8; --grid:#e3e8dd;
+  --heide:#7a4688; --heide-soft:#efe4f2; --mos:#3f6a49; --on-accent:#ffffff;
+  --display:"Young Serif", Georgia, "Times New Roman", serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --step--1:clamp(.82rem,.8rem + .1vw,.88rem);
+  --step-0:clamp(1rem,.97rem + .15vw,1.08rem);
+  --step-1:clamp(1.2rem,1.1rem + .4vw,1.4rem);
+  --step-3:clamp(2.1rem,1.6rem + 2.2vw,3.4rem);
+  --radius:6px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#131915; --sheet:#1a221d; --ink:#e4ebe2; --ink-soft:#a9b6ac; --line:#34413a; --grid:#212b25;
+    --heide:#c99bd8; --heide-soft:#30223a; --mos:#8fbf98; --on-accent:#1a1020;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#131915; --sheet:#1a221d; --ink:#e4ebe2; --ink-soft:#a9b6ac; --line:#34413a; --grid:#212b25;
+  --heide:#c99bd8; --heide-soft:#30223a; --mos:#8fbf98; --on-accent:#1a1020;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:var(--step-0);line-height:1.6}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--paper)}
+h1{font-family:var(--display);font-weight:400;font-size:var(--step-3);line-height:1.15;text-wrap:balance;margin:0}
+p{margin:0}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--heide);outline-offset:3px;border-radius:2px}
+.wrap{max-width:1140px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.label{font-family:var(--mono);font-size:var(--step--1);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--paper);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;padding-block:12px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--display);font-size:1.25rem}
+.brand svg{width:30px;height:30px;flex:none}
+
+main{flex:1}
+main .wrap{display:grid;grid-template-columns:1.05fr 1fr;gap:56px;align-items:center;padding-block:64px 72px}
+.text{display:grid;gap:22px;min-width:0}
+.lead{font-size:var(--step-1);color:var(--ink-soft);max-width:36ch;line-height:1.5}
+.ctas{display:flex;flex-wrap:wrap;gap:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:700 var(--step-0)/1.2 var(--body);padding:13px 20px;border-radius:var(--radius);text-decoration:none;border:1.5px solid transparent}
+.btn-primary{background:var(--heide);color:var(--on-accent)}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-ghost{border-color:var(--ink);color:var(--ink);background:transparent}
+.btn-ghost:hover{background:var(--sheet)}
+
+.sheet{margin:0;background-color:var(--sheet);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:22px 22px;border:1.5px solid var(--ink);border-radius:2px;position:relative;min-width:0}
+.sheet-note{position:absolute;top:-12px;left:18px;background:var(--paper);border:1px solid var(--ink);font-family:var(--mono);font-size:.7rem;padding:2px 8px;letter-spacing:.04em}
+.sheet-body{padding:30px 26px 18px;display:grid;gap:8px}
+.sheet-body svg{width:100%;height:auto;display:block}
+.code{font-family:var(--mono);font-weight:500;font-size:clamp(3.4rem,2.6rem + 4vw,5.6rem);line-height:1;color:var(--heide);letter-spacing:.02em}
+.stamp{display:grid;grid-template-columns:1.4fr 1fr 1fr;border-top:1.5px solid var(--ink);font-family:var(--mono);font-size:.72rem}
+.stamp div{padding:8px 10px;border-right:1px solid var(--line);display:grid;gap:2px;min-width:0}
+.stamp div:last-child{border-right:0}
+.stamp small{color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;font-size:.64rem}
+.stamp span{overflow-wrap:anywhere}
+
+footer{border-top:1.5px solid var(--ink)}
+footer .wrap{padding-block:24px 32px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:var(--step--1);color:var(--ink-soft)}
+footer nav{display:flex;gap:20px;flex-wrap:wrap}
+
+@media (max-width:900px){main .wrap{grid-template-columns:1fr;gap:40px;padding-block:40px 56px}}
+@media (prefers-reduced-motion:no-preference){.btn{transition:filter .15s,background .15s}}
+</style>
+</head>
+<body>
+<div style="background:#7a4688;color:#fff;font:600 14px/1.4 system-ui,sans-serif;padding:8px 16px;text-align:center">Voorlopige versie. Dit bedrijf is nog in oprichting.</div>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/groengevonden-site/" aria-label="Groen Gevonden, naar de homepage">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M16 2.5c-6.1 0-11 4.8-11 10.8 0 7.6 8.6 14.8 10.2 16.1a1.3 1.3 0 0 0 1.6 0C18.4 28.1 27 20.9 27 13.3 27 7.3 22.1 2.5 16 2.5Z" fill="var(--heide)"/>
+        <path d="M11 17.5c0-5 3.6-8.4 10-8.6-.2 6.3-3.7 9.9-8.5 9.9" fill="none" stroke="var(--on-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10.5 19.5c2.2-2.6 4.6-4.6 7.3-6.2" fill="none" stroke="var(--on-accent)" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      Groen Gevonden
+    </a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="text">
+      <span class="label">Fout 404</span>
+      <h1>Deze pagina staat niet op de tekening.</h1>
+      <p class="lead">We kunnen de pagina die je zoekt niet vinden. Misschien is de link niet helemaal goed overgenomen, of is de pagina verhuisd.</p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="/groengevonden-site/">Naar de homepage</a>
+        <a class="btn btn-ghost" href="/groengevonden-site/#scan">Vraag een gratis scan aan</a>
+      </div>
+    </div>
+
+    <figure class="sheet" aria-hidden="true">
+      <span class="sheet-note">LOCATIE ONBEKEND</span>
+      <div class="sheet-body">
+        <svg viewBox="0 0 320 150">
+          <circle cx="24" cy="122" r="7" fill="var(--mos)"/>
+          <path d="M24 122 C 84 122, 70 44, 142 52 S 232 118, 284 34" fill="none" stroke="var(--mos)" stroke-width="2.5" stroke-dasharray="7 8" stroke-linecap="round"/>
+          <path d="M274 24 L294 44 M294 24 L274 44" stroke="var(--heide)" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <b class="code">404</b>
+      </div>
+      <div class="stamp">
+        <div><small>Gezocht</small><span>deze pagina</span></div>
+        <div><small>Gevonden</small><span>niets</span></div>
+        <div><small>Blad</small><span>404</span></div>
+      </div>
+    </figure>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Groen Gevonden, Muiderberg</span>
+    <nav aria-label="Voettekst">
+      <a href="/groengevonden-site/">Homepage</a>
+      <a href="/groengevonden-site/#scan">Gratis scan</a>
+      <a href="/groengevonden-site/privacy">Privacyverklaring</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
