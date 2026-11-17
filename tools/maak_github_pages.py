@@ -35,6 +35,11 @@ EIGEN_DOMEIN = PAGES.get("eigen_domein", "").strip()
 PREFIX = "" if EIGEN_DOMEIN else "/" + PAGES["repo"]
 BASE_URL = f"https://{EIGEN_DOMEIN}" if EIGEN_DOMEIN else f"https://{PAGES['gebruiker']}.github.io{PREFIX}"
 
+# De URL van de eigen web-app voor het formulier (tools/apps-script/Code.gs). Leeg: via FormSubmit.
+FORMULIER_URL = PAGES.get("formulier_url", "").strip()
+if FORMULIER_URL and not re.match(r"^https://script\.google\.com/macros/s/[A-Za-z0-9_-]+/exec$", FORMULIER_URL):
+    sys.exit("STOP: formulier_url moet eruitzien als https://script.google.com/macros/s/.../exec")
+
 NOTICE = (
     '<div style="background:#7a4688;color:#fff;font:600 14px/1.4 system-ui,sans-serif;'
     'padding:8px 16px;text-align:center">Voorlopige versie. Dit bedrijf is nog in oprichting.</div>'
@@ -42,9 +47,14 @@ NOTICE = (
 PRIVACY_NOTE = (
     '<p style="border:1px solid currentColor;border-radius:8px;padding:12px 14px">'
     "<b>Voorlopige versie.</b> Deze versie van de site staat tijdelijk bij GitHub Pages, niet bij Cloudflare. "
-    "GitHub ziet daarbij je IP-adres. Het formulier stuurt je aanvraag via de dienst FormSubmit (formsubmit.co) "
-    "naar onze mailbox. FormSubmit verwerkt daarbij wat je invult, alleen om het bericht bij ons af te leveren. "
-    "Op de definitieve site vervalt deze tussenstap.</p>"
+    "GitHub ziet daarbij je IP-adres. " + (
+        "Het formulier stuurt je aanvraag via een script in ons eigen Google-account naar onze mailbox. "
+        "Je krijgt daarna automatisch een bevestiging per e-mail. Google verwerkt daarbij wat je invult."
+        if FORMULIER_URL else
+        "Het formulier stuurt je aanvraag via de dienst FormSubmit (formsubmit.co) naar onze mailbox. "
+        "FormSubmit verwerkt daarbij wat je invult, alleen om het bericht bij ons af te leveren. "
+        "Op de definitieve site vervalt deze tussenstap."
+    ) + "</p>"
 )
 
 
@@ -97,6 +107,7 @@ for source in sorted(DIST.rglob("*")):
 
 form_js = (ROOT / "tools" / "github-pages-form.js").read_text(encoding="utf-8")
 form_js = form_js.replace("__EMAIL__", CONFIG["email"]).replace("__TELEFOON__", CONFIG["telefoon"])
+form_js = form_js.replace("__FORMULIER_URL__", FORMULIER_URL)
 (DOCS / "pages-form.js").write_text(form_js, encoding="utf-8")
 # Zonder dit bestand haalt GitHub de site door Jekyll. Dat is niet nodig.
 (DOCS / ".nojekyll").write_text("", encoding="utf-8")

@@ -249,6 +249,22 @@ Wat anders is dan bij de echte site:
 
 Zodra de site op Cloudflare Pages en het eigen domein staat, zet je GitHub Pages uit en verwijder je `docs/`.
 
+## Formulier via Google Apps Script
+
+Op GitHub Pages kan het formulier ook via een eigen script in het Google-account van de zaak lopen.
+Dat script staat in `tools/apps-script/Code.gs`. Het mailt elke aanvraag naar de mailbox van de zaak
+en stuurt de aanvrager een bevestiging. Beide mails komen van dat Google-account. FormSubmit is dan niet meer nodig.
+
+Aanzetten, één keer:
+
+1. Ga naar script.google.com, ingelogd met het account van de zaak. Maak een nieuw project.
+2. Plak de inhoud van `tools/apps-script/Code.gs` in `Code.gs` en sla op.
+3. Kies Implementeren, Nieuwe implementatie, type Web-app. Uitvoeren als: Ik. Wie heeft toegang: Iedereen.
+4. Geef toestemming. Google waarschuwt dat de app niet geverifieerd is. Dat klopt: het is je eigen script.
+5. Zet de URL van de web-app in `tools/github-pages.json` bij `formulier_url`. Bouw `docs/` opnieuw.
+
+Een gratis Google-account mag ongeveer 100 mails per dag sturen. Het script stopt daarom bij 40 aanvragen per dag.
+
 ## Omgevingsvariabelen
 
 Zet deze in Cloudflare bij **Workers & Pages** > je project > **Settings** > **Variables and Secrets** > **Add**

@@ -13,7 +13,11 @@
   if (!form) return;
   var EMAIL = '__EMAIL__';
   var TELEFOON = '__TELEFOON__';
-  var ENDPOINT = 'https://formsubmit.co/ajax/' + EMAIL;
+  // Staat er een URL van de eigen web-app (Google Apps Script) in tools/github-pages.json, dan gaat de
+  // aanvraag daarheen: die mailt de aanvraag naar de mailbox en een bevestiging naar de aanvrager.
+  // Anders gaat de aanvraag via FormSubmit.
+  var EIGEN_URL = '__FORMULIER_URL__';
+  var ENDPOINT = EIGEN_URL || 'https://formsubmit.co/ajax/' + EMAIL;
   var msg = document.getElementById('form-msg');
   var knop = document.getElementById('f-submit');
   var bezig = false;
@@ -74,18 +78,26 @@
     // FormSubmit is soms traag, daarom wachten we ruim.
     var stop = window.AbortController ? new AbortController() : null;
     var klok = setTimeout(function () { if (stop) stop.abort(); }, 45000);
-    fetch(ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(data),
-      signal: stop ? stop.signal : undefined
-    }).then(function (r) {
+    var verzoek = { method: 'POST', signal: stop ? stop.signal : undefined };
+    if (EIGEN_URL) {
+      // text/plain: dan stuurt de browser geen extra controleverzoek, dat een Apps Script-web-app niet kent.
+      var eigen = {};
+      new FormData(form).forEach(function (value, key) { eigen[key] = value; });
+      verzoek.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
+      verzoek.body = JSON.stringify(eigen);
+    } else {
+      verzoek.headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+      verzoek.body = JSON.stringify(data);
+    }
+    fetch(ENDPOINT, verzoek).then(function (r) {
       return r.json().then(function (antwoord) { return { ok: r.ok, antwoord: antwoord }; });
     }).then(function (res) {
-      var gelukt = res.ok && String(res.antwoord.success) === 'true';
+      var gelukt = res.ok && (EIGEN_URL ? res.antwoord.ok === true : String(res.antwoord.success) === 'true');
       if (!gelukt) { mislukt(); return; }
       form.reset();
-      show('Dank je. Je aanvraag is verstuurd. Je scan komt binnen twee werkdagen in je mailbox.', false);
+      show(EIGEN_URL
+        ? 'Dank je. Je aanvraag is verstuurd. Je krijgt nu een bevestiging per e-mail. Je scan komt binnen twee werkdagen.'
+        : 'Dank je. Je aanvraag is verstuurd. Je scan komt binnen twee werkdagen in je mailbox.', false);
     }).catch(mislukt).then(function () {
       clearTimeout(klok);
       bezig = false;
