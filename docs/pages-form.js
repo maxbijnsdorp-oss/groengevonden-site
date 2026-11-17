@@ -16,7 +16,7 @@
   // Staat er een URL van de eigen web-app (Google Apps Script) in tools/github-pages.json, dan gaat de
   // aanvraag daarheen: die mailt de aanvraag naar de mailbox en een bevestiging naar de aanvrager.
   // Anders gaat de aanvraag via FormSubmit.
-  var EIGEN_URL = '';
+  var EIGEN_URL = 'https://script.google.com/macros/s/AKfycbybVOYJVIkbKltpbHqHl-LP1DWHmsdyM6DRkX14TjYidbCUcUuy-ofyZBgAuKhsPcS0KA/exec';
   var ENDPOINT = EIGEN_URL || 'https://formsubmit.co/ajax/' + EMAIL;
   var msg = document.getElementById('form-msg');
   var knop = document.getElementById('f-submit');
