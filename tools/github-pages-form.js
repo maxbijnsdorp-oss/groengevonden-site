@@ -69,10 +69,11 @@
 
     bezig = true;
     knop.disabled = true;
-    show('Bezig met versturen...', false);
-    // Antwoordt de dienst niet binnen 20 seconden, dan stoppen we en ziet de bezoeker de foutmelding.
+    show('Bezig met versturen. Dit kan een halve minuut duren.', false);
+    // Antwoordt de dienst niet binnen 45 seconden, dan stoppen we en ziet de bezoeker de foutmelding.
+    // FormSubmit is soms traag, daarom wachten we ruim.
     var stop = window.AbortController ? new AbortController() : null;
-    var klok = setTimeout(function () { if (stop) stop.abort(); }, 20000);
+    var klok = setTimeout(function () { if (stop) stop.abort(); }, 45000);
     fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
